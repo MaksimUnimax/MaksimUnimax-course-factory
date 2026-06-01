@@ -10,6 +10,8 @@ Editing and documentation will be done through Codex and Git.
 
 A live preview may be added later only for viewing generated artifacts, not for editing methodology.
 
-The initial methodology baseline will use The Carpentries, Open University Learning Design, Quality Matters, and Rebus/OER approach as starting references.
+The initial methodology baseline uses The Carpentries, Open University Learning Design, Quality Matters, and Rebus/OER approach as starting references.
 
-Course Factory must not create courses “from imagination”. It must use source materials and explicit methodology sources.
+Course Factory must not create courses from imagination. It must use source materials and explicit methodology sources.
+
+The first implementation direction is file-based test bench, not backend-first development.
