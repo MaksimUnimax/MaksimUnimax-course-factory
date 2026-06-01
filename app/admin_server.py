@@ -52,6 +52,17 @@ ROLE_TITLES = {
     "publisher": "Publisher",
 }
 
+AGENT_DESCRIPTIONS = {
+    "source-analyst": "Разбирает исходные материалы",
+    "course-architect": "Строит карту курса",
+    "lesson-designer": "Проектирует каркас урока",
+    "lesson-writer": "Пишет текст урока",
+    "assessment-designer": "Создаёт проверки знаний",
+    "quality-reviewer": "Проверяет качество курса",
+    "grounding-reviewer": "Ищет неподтверждённые факты",
+    "publisher": "Готовит курс к выдаче",
+}
+
 AUTH_STATE: dict[str, object] | None = None
 AUTH_FILE_PATH: Path = AUTH_FILE_DEFAULT
 SERVER_HOST = HOST_DEFAULT
@@ -103,6 +114,10 @@ def git_status_payload() -> dict[str, object]:
 
 def slug_title(agent: str) -> str:
     return ROLE_TITLES.get(agent, agent.replace("-", " ").title())
+
+
+def agent_description(agent: str) -> str:
+    return AGENT_DESCRIPTIONS.get(agent, "")
 
 
 def placeholder_files(role_title: str) -> dict[str, str]:
@@ -306,6 +321,7 @@ def collect_home_state() -> dict[str, object]:
             {
                 "name": agent,
                 "title": slug_title(agent),
+                "description": agent_description(agent),
                 "relative_path": str(agent_dir.relative_to(REPO_ROOT)),
                 "files": collect_agent_files(agent),
             }
@@ -317,6 +333,7 @@ def collect_home_state() -> dict[str, object]:
             {
                 "name": agent_dir.name,
                 "title": slug_title(agent_dir.name),
+                "description": agent_description(agent_dir.name),
                 "relative_path": str(agent_dir.relative_to(REPO_ROOT)),
                 "files": collect_agent_files(agent_dir.name),
             }

@@ -43,6 +43,7 @@
       const fileCount = (agent.files || []).length;
       card.innerHTML = `
         <div class="name">${escapeHtml(agent.title || agent.name)}</div>
+        <div class="description">${escapeHtml(agent.description || "")}</div>
         <div class="meta">${escapeHtml(agent.relative_path || "")}</div>
         <div class="meta">${fileCount} markdown files</div>
       `;

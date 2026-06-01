@@ -107,6 +107,12 @@ p {
   margin-bottom: 6px;
 }
 
+.agent-card .description {
+  color: var(--accent-strong);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
 .agent-card .meta {
   color: var(--muted);
   font-size: 13px;
