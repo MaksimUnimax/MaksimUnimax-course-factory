@@ -12,11 +12,11 @@ Status: completed.
 
 Define the Course Factory method, method sources, source policy, agent roles, artifact contracts, quality rubric, examples, and test cases.
 
-## Stage 2 — Local admin MVP and file-based agent/skill test bench
+## Stage 2 — Admin MVP with Basic Auth and file-based agent/skill test bench
 
 Status: in progress.
 
-Create a localhost-only markdown admin for `skills/` and test file-based skills/agents on one controlled source pack.
+Create a localhost-only and password-protected public markdown admin for `skills/` and test file-based skills/agents on one controlled source pack.
 
 ## Stage 3 — First source-to-course proof
 

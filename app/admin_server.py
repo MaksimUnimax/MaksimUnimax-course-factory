@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import cgi
-import html
+import base64
+import hmac
 import json
 import mimetypes
 import os
 import re
 import subprocess
+import hashlib
+import secrets
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,9 +21,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILLS_ROOT = REPO_ROOT / "skills"
 STATIC_ROOT = REPO_ROOT / "static"
 TEMPLATE_PATH = REPO_ROOT / "templates" / "admin.html"
-HOST = "127.0.0.1"
-PORT = 8091
+HOST_DEFAULT = "127.0.0.1"
+PORT_DEFAULT = 8091
+AUTH_FILE_DEFAULT = REPO_ROOT / ".runtime" / "admin_basic_auth.json"
 MAX_CONTENT_BYTES = 200 * 1024
+AUTH_REALM = "Course Factory Admin"
+AUTH_USERNAME = "admin"
+AUTH_ITERATIONS = 210_000
 
 AGENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
@@ -44,6 +51,11 @@ ROLE_TITLES = {
     "grounding-reviewer": "Grounding Reviewer",
     "publisher": "Publisher",
 }
+
+AUTH_STATE: dict[str, object] | None = None
+AUTH_FILE_PATH: Path = AUTH_FILE_DEFAULT
+SERVER_HOST = HOST_DEFAULT
+SERVER_PORT = PORT_DEFAULT
 
 
 def run_git(args: list[str], *, timeout: int = 10, extra_env: dict[str, str] | None = None) -> tuple[int, str]:
@@ -116,6 +128,75 @@ def placeholder_files(role_title: str) -> dict[str, str]:
             "- Stop on missing sources, risky sources, or unclear acceptance.\n"
         ),
     }
+
+
+def runtime_auth_path() -> Path:
+    value = os.environ.get("COURSE_FACTORY_ADMIN_AUTH_FILE")
+    if value:
+        return Path(value).expanduser()
+    return AUTH_FILE_DEFAULT
+
+
+def runtime_host() -> str:
+    return os.environ.get("COURSE_FACTORY_ADMIN_HOST", HOST_DEFAULT)
+
+
+def runtime_port() -> int:
+    raw = os.environ.get("COURSE_FACTORY_ADMIN_PORT")
+    return int(raw) if raw else PORT_DEFAULT
+
+
+def make_password_hash(password: str, salt: bytes, iterations: int = AUTH_ITERATIONS) -> bytes:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+
+
+def ensure_auth_state(auth_path: Path) -> tuple[dict[str, object], str | None]:
+    auth_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_path.parent.chmod(0o700)
+    if auth_path.exists():
+        raw = json.loads(auth_path.read_text(encoding="utf-8"))
+        return raw, None
+
+    password = secrets.token_urlsafe(24)
+    salt = secrets.token_bytes(16)
+    payload = {
+        "username": AUTH_USERNAME,
+        "iterations": AUTH_ITERATIONS,
+        "salt_b64": base64.b64encode(salt).decode("ascii"),
+        "hash_b64": base64.b64encode(make_password_hash(password, salt)).decode("ascii"),
+    }
+    auth_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    auth_path.chmod(0o600)
+    return payload, password
+
+
+def load_auth_state(auth_path: Path) -> dict[str, object]:
+    raw = json.loads(auth_path.read_text(encoding="utf-8"))
+    if raw.get("username") != AUTH_USERNAME:
+        raise ValueError("invalid auth file username")
+    if "salt_b64" not in raw or "hash_b64" not in raw:
+        raise ValueError("invalid auth file contents")
+    return raw
+
+
+def verify_basic_auth(header_value: str | None, auth_state: dict[str, object]) -> bool:
+    if not header_value or not header_value.startswith("Basic "):
+        return False
+    try:
+        decoded = base64.b64decode(header_value[6:].strip()).decode("utf-8")
+        username, password = decoded.split(":", 1)
+    except Exception:
+        return False
+    if username != AUTH_USERNAME:
+        return False
+    try:
+        salt = base64.b64decode(str(auth_state["salt_b64"]))
+        expected = base64.b64decode(str(auth_state["hash_b64"]))
+        iterations = int(auth_state.get("iterations", AUTH_ITERATIONS))
+    except Exception:
+        return False
+    actual = make_password_hash(password, salt, iterations)
+    return hmac.compare_digest(actual, expected)
 
 
 def ensure_agent_scaffold() -> None:
@@ -241,7 +322,7 @@ def collect_home_state() -> dict[str, object]:
             }
         )
     return {
-        "warning": "MVP локальный. Не открывать наружу без авторизации.",
+        "warning": "Админка открыта наружу только для MVP. Не используйте личные пароли и не передавайте доступ.",
         "repo_root": str(REPO_ROOT),
         "skills_root": str(SKILLS_ROOT),
         "git": git_status_payload(),
@@ -387,7 +468,23 @@ class AdminHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def reject_unauthorized(self) -> None:
+        body = "Доступ запрещён: нужен логин и пароль.".encode("utf-8")
+        self.send_response(401)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("WWW-Authenticate", f'Basic realm="{AUTH_REALM}", charset="UTF-8"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def is_authorized(self) -> bool:
+        assert AUTH_STATE is not None
+        return verify_basic_auth(self.headers.get("Authorization"), AUTH_STATE)
+
     def do_GET(self) -> None:
+        if not self.is_authorized():
+            self.reject_unauthorized()
+            return
         parsed = urlparse(self.path)
         try:
             if parsed.path == "/":
@@ -413,6 +510,9 @@ class AdminHandler(BaseHTTPRequestHandler):
             self.send_json(500, {"ok": False, "error": f"internal error: {exc}"})
 
     def do_POST(self) -> None:
+        if not self.is_authorized():
+            self.reject_unauthorized()
+            return
         parsed = urlparse(self.path)
         try:
             payload = json_body(self)
@@ -444,10 +544,19 @@ class AdminHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    global AUTH_STATE, AUTH_FILE_PATH, SERVER_HOST, SERVER_PORT
     ensure_agent_scaffold()
-    server = ThreadingHTTPServer((HOST, PORT), AdminHandler)
+    AUTH_FILE_PATH = runtime_auth_path()
+    SERVER_HOST = runtime_host()
+    SERVER_PORT = runtime_port()
+    AUTH_STATE, generated_password = ensure_auth_state(AUTH_FILE_PATH)
+    if generated_password:
+        print("Admin password generated for this run.")
+        print(f"Username: {AUTH_USERNAME}")
+        print(f"Password: {generated_password}")
+    server = ThreadingHTTPServer((SERVER_HOST, SERVER_PORT), AdminHandler)
     server.daemon_threads = True
-    print(f"Course Factory Agent Admin: http://{HOST}:{PORT}")
+    print(f"Course Factory Agent Admin: http://{SERVER_HOST}:{SERVER_PORT}")
     server.serve_forever()
 
 

@@ -13,3 +13,9 @@ A local-only agent admin is available for editing markdown files inside `skills/
 The server binds only to `127.0.0.1:8091`.
 
 Saving changes updates files locally only. Commit and push remain separate Codex runs.
+
+## Public live admin
+
+A password-protected public admin can be started on `0.0.0.0:8091` with HTTP Basic Auth.
+
+The public MVP uses username `admin` and a generated password stored only as a hash in `.runtime/`.

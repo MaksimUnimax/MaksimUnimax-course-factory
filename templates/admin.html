@@ -10,7 +10,7 @@
   <header>
     <h1>Course Factory Agent Admin</h1>
     <p class="small">Локальная панель для markdown-агентов и file-based test bench.</p>
-    <div class="warning">MVP локальный. Не открывать наружу без авторизации.</div>
+    <div class="warning">Админка открыта наружу только для MVP. Не используйте личные пароли и не передавайте доступ.</div>
   </header>
 
   <main class="shell">
@@ -31,6 +31,10 @@
         <div class="small">Агент: <strong id="current-agent">-</strong> · Файл: <strong id="current-file">-</strong></div>
         <div class="small">Путь: <span id="file-path">-</span></div>
         <div class="small">Изменён: <span id="file-mtime">-</span></div>
+        <div>
+          <div class="small">Markdown-файлы агента</div>
+          <div id="file-list" class="file-list"></div>
+        </div>
         <textarea id="editor" spellcheck="false" placeholder="Выберите markdown-файл"></textarea>
         <div class="actions">
           <div class="span-2">

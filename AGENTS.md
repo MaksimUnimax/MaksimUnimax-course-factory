@@ -41,3 +41,11 @@ Editable scope is limited to markdown files under `skills/`.
 Do not allow arbitrary file paths, symlink escapes, or hidden files.
 
 Saving changes updates the file locally only. Commit and push are separate Codex runs.
+
+## Public live admin MVP
+
+If the admin is exposed on `0.0.0.0:8091`, protect all routes with HTTP Basic Auth.
+
+Use username `admin` and a generated password stored only as a hash and salt in `.runtime/admin_basic_auth.json`.
+
+Do not reuse personal passwords.

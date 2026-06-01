@@ -17,3 +17,5 @@ Course Factory must not create courses from imagination. It must use source mate
 The first implementation direction is file-based test bench, not backend-first development.
 
 A local-only admin MVP is acceptable if it stays file-based, git-trackable, and restricted to markdown files under `skills/`.
+
+If the admin is exposed publicly, it must use HTTP Basic Auth and a generated password, not a personal password.
