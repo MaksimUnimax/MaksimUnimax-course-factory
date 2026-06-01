@@ -8,10 +8,11 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import subprocess
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -21,6 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILLS_ROOT = REPO_ROOT / "skills"
 STATIC_ROOT = REPO_ROOT / "static"
 TEMPLATE_PATH = REPO_ROOT / "templates" / "admin.html"
+RUNS_ROOT = REPO_ROOT / "runs"
 HOST_DEFAULT = "127.0.0.1"
 PORT_DEFAULT = 8091
 AUTH_FILE_DEFAULT = REPO_ROOT / ".runtime" / "admin_basic_auth.json"
@@ -28,6 +30,15 @@ MAX_CONTENT_BYTES = 200 * 1024
 AUTH_REALM = "Course Factory Admin"
 AUTH_USERNAME = "admin"
 AUTH_ITERATIONS = 210_000
+RUN_ID_RE = re.compile(r"^\d{8}_\d{6}_[a-z][a-z0-9-]*$")
+RUN_SAFE_BASENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+RUN_ALLOWED_READ_EXTS = {".md", ".json", ".txt", ".log"}
+RUN_REQUEST_FILENAME = "RUN_REQUEST.md"
+RUN_STATUS_FILENAME = "status.json"
+RUN_PENDING_STATUS = "pending_codex_execution"
+RUN_INPUT_DIR = Path("input") / "source_pack"
+RUN_OUTPUT_DIR = Path("output")
+RUN_LOG_DIR = Path("logs")
 
 AGENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
@@ -118,6 +129,10 @@ def slug_title(agent: str) -> str:
 
 def agent_description(agent: str) -> str:
     return AGENT_DESCRIPTIONS.get(agent, "")
+
+
+def run_page_warning() -> str:
+    return "MVP: кнопка создаёт заявку на запуск. Codex выполняет её отдельным controlled run."
 
 
 def placeholder_files(role_title: str) -> dict[str, str]:
@@ -308,7 +323,7 @@ def collect_agent_files(agent: str) -> list[dict[str, object]]:
     return files
 
 
-def collect_home_state() -> dict[str, object]:
+def collect_page_state(page: str) -> dict[str, object]:
     ensure_agent_scaffold()
     agents = []
     seen = set()
@@ -338,8 +353,14 @@ def collect_home_state() -> dict[str, object]:
                 "files": collect_agent_files(agent_dir.name),
             }
         )
+    warning = (
+        "MVP: кнопка создаёт заявку на запуск. Codex выполняет её отдельным controlled run."
+        if page == "runs"
+        else "Админка открыта наружу только для MVP. Не используйте личные пароли и не передавайте доступ."
+    )
     return {
-        "warning": "Админка открыта наружу только для MVP. Не используйте личные пароли и не передавайте доступ.",
+        "page": page,
+        "warning": warning,
         "repo_root": str(REPO_ROOT),
         "skills_root": str(SKILLS_ROOT),
         "git": git_status_payload(),
@@ -351,11 +372,15 @@ def load_template() -> str:
     return TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
-def render_home() -> bytes:
-    state = collect_home_state()
+def render_page(page: str) -> bytes:
+    state = collect_page_state(page)
     template = load_template()
     safe_state_json = json.dumps(state, ensure_ascii=False).replace("<", "\\u003c")
-    html_text = template.replace("__STATE_JSON__", safe_state_json)
+    html_text = (
+        template.replace("__STATE_JSON__", safe_state_json)
+        .replace("__PAGE__", page)
+        .replace("__PAGE_WARNING__", str(state["warning"]))
+    )
     return html_text.encode("utf-8")
 
 
@@ -363,44 +388,45 @@ def json_body(handler: BaseHTTPRequestHandler) -> dict[str, object]:
     length = int(handler.headers.get("Content-Length", "0") or "0")
     if length > MAX_CONTENT_BYTES * 2:
         raise ValueError("request body too large")
-    raw = handler.rfile.read(length) if length else b""
     content_type = handler.headers.get_content_type()
+    if content_type.startswith("multipart/form-data"):
+        field_storage = parse_multipart_form(handler, length)
+        data: dict[str, object] = {}
+        for item in field_storage.list or []:
+            if getattr(item, "filename", None):
+                item.file.seek(0)
+                data[item.name] = {
+                    "filename": item.filename,
+                    "content": item.file.read(),
+                }
+            else:
+                data[item.name] = item.value
+        return data
+    raw = handler.rfile.read(length) if length else b""
     if content_type == "application/json":
         return json.loads(raw.decode("utf-8") if raw else "{}")
     if content_type == "application/x-www-form-urlencoded":
         parsed = parse_qs(raw.decode("utf-8"), keep_blank_values=True)
         return {key: values[-1] if values else "" for key, values in parsed.items()}
-    if content_type.startswith("multipart/form-data"):
-        environ = {
-            "REQUEST_METHOD": "POST",
-            "CONTENT_TYPE": handler.headers.get("Content-Type", ""),
-            "CONTENT_LENGTH": str(length),
-        }
-        raw_stream = os.fdopen(os.dup(handler.rfile.fileno()), "rb")
-        try:
-            field_storage = cgi.FieldStorage(
-                fp=raw_stream,
-                headers=handler.headers,
-                environ=environ,
-                keep_blank_values=True,
-            )
-        finally:
-            raw_stream.close()
-        data: dict[str, object] = {}
-        for key in field_storage.keys() or []:
-            item = field_storage[key]
-            if isinstance(item, list):
-                item = item[-1]
-            if getattr(item, "filename", None):
-                item.file.seek(0)
-                data[key] = {
-                    "filename": item.filename,
-                    "content": item.file.read(),
-                }
-            else:
-                data[key] = item.value
-        return data
     raise ValueError(f"unsupported content type: {content_type}")
+
+
+def parse_multipart_form(handler: BaseHTTPRequestHandler, length: int | None = None) -> cgi.FieldStorage:
+    if length is None:
+        length = int(handler.headers.get("Content-Length", "0") or "0")
+    if length > MAX_CONTENT_BYTES * 10:
+        raise ValueError("request body too large")
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "CONTENT_TYPE": handler.headers.get("Content-Type", ""),
+        "CONTENT_LENGTH": str(length),
+    }
+    return cgi.FieldStorage(
+        fp=handler.rfile,
+        headers=handler.headers,
+        environ=environ,
+        keep_blank_values=True,
+    )
 
 
 def safe_text(value: object) -> str:
@@ -409,6 +435,314 @@ def safe_text(value: object) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def is_safe_run_id(run_id: str) -> bool:
+    return bool(run_id) and bool(RUN_ID_RE.fullmatch(run_id))
+
+
+def is_safe_run_filename(filename: str, *, allowed_exts: set[str] | None = None) -> bool:
+    if not filename or "\x00" in filename:
+        return False
+    if filename.startswith("."):
+        return False
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return False
+    if not RUN_SAFE_BASENAME_RE.fullmatch(filename):
+        return False
+    if allowed_exts is not None and Path(filename).suffix.lower() not in allowed_exts:
+        return False
+    return True
+
+
+def resolve_run_dir(run_id: str, *, must_exist: bool = False) -> Path:
+    if not is_safe_run_id(run_id):
+        raise ValueError("invalid run_id")
+    run_dir = RUNS_ROOT / run_id
+    if run_dir.is_symlink():
+        raise ValueError("symlinked run directory is not allowed")
+    if must_exist and not run_dir.exists():
+        raise FileNotFoundError(run_id)
+    return run_dir
+
+
+def ensure_run_structure(run_dir: Path) -> None:
+    (run_dir / RUN_INPUT_DIR).mkdir(parents=True, exist_ok=True)
+    (run_dir / RUN_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    (run_dir / RUN_LOG_DIR).mkdir(parents=True, exist_ok=True)
+    (run_dir / RUN_OUTPUT_DIR / ".gitkeep").touch(exist_ok=True)
+    (run_dir / RUN_LOG_DIR / ".gitkeep").touch(exist_ok=True)
+
+
+def utc_now() -> datetime:
+    return datetime.utcnow()
+
+
+def utc_stamp() -> str:
+    return utc_now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def create_unique_run_id(agent_slug: str) -> str:
+    current = utc_now()
+    for _ in range(120):
+        run_id = f"{current.strftime('%Y%m%d_%H%M%S')}_{agent_slug}"
+        if not (RUNS_ROOT / run_id).exists():
+            return run_id
+        current = current.replace(microsecond=0) + timedelta(seconds=1)
+    raise RuntimeError("unable to create unique run_id")
+
+
+def list_marked_files(directory: Path, *, allowed_exts: set[str] | None = None) -> list[str]:
+    if not directory.exists() or not directory.is_dir():
+        return []
+    items: list[str] = []
+    for path in sorted(directory.iterdir(), key=lambda p: p.name.lower()):
+        if not path.is_file():
+            continue
+        if path.name.startswith(".") or path.name == ".gitkeep":
+            continue
+        if allowed_exts and path.suffix.lower() not in allowed_exts:
+            continue
+        items.append(path.name)
+    return items
+
+
+def run_status_path(run_dir: Path) -> Path:
+    return run_dir / RUN_STATUS_FILENAME
+
+
+def run_request_path(run_dir: Path) -> Path:
+    return run_dir / RUN_REQUEST_FILENAME
+
+
+def load_run_status(run_dir: Path) -> dict[str, object]:
+    status_path = run_status_path(run_dir)
+    if not status_path.exists():
+        raise FileNotFoundError(RUN_STATUS_FILENAME)
+    return json.loads(status_path.read_text(encoding="utf-8"))
+
+
+def collect_run_summary(run_dir: Path) -> dict[str, object]:
+    status = load_run_status(run_dir)
+    output_files = list_marked_files(run_dir / RUN_OUTPUT_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
+    return {
+        "run_id": status.get("run_id", run_dir.name),
+        "agent": status.get("agent", ""),
+        "status": status.get("status", ""),
+        "created_at_utc": status.get("created_at_utc", ""),
+        "goal": status.get("goal", ""),
+        "target_audience": status.get("target_audience", ""),
+        "source_files": status.get("source_files", []),
+        "output_files": output_files,
+    }
+
+
+def list_runs_payload() -> list[dict[str, object]]:
+    RUNS_ROOT.mkdir(parents=True, exist_ok=True)
+    runs: list[dict[str, object]] = []
+    for run_dir in RUNS_ROOT.iterdir():
+        if not run_dir.is_dir() or run_dir.name.startswith(".") or not is_safe_run_id(run_dir.name):
+            continue
+        try:
+            runs.append(collect_run_summary(run_dir))
+        except Exception:
+            continue
+    runs.sort(key=lambda item: str(item.get("created_at_utc", "")), reverse=True)
+    return runs
+
+
+def find_agent_slug(agent: str) -> str:
+    if not is_safe_agent(agent):
+        raise ValueError("invalid agent")
+    return agent
+
+
+def run_request_markdown(run_id: str, agent: str, goal: str, target_audience: str, source_files: list[str]) -> str:
+    lines = [
+        "# Run request",
+        "",
+        "## Run ID",
+        "",
+        run_id,
+        "",
+        "## Agent",
+        "",
+        agent,
+        "",
+        "## Status",
+        "",
+        RUN_PENDING_STATUS,
+        "",
+        "## Goal",
+        "",
+        goal,
+        "",
+        "## Target audience",
+        "",
+        target_audience,
+        "",
+        "## Source files",
+        "",
+    ]
+    if source_files:
+        lines.extend([f"- input/source_pack/{name}" for name in source_files])
+    else:
+        lines.append("- (no source files)")
+    lines.extend(
+        [
+            "",
+            "## Execution rule",
+            "",
+            "This run request was created by the admin UI.",
+            "",
+            "The UI does not execute Codex or model calls.",
+            "",
+            "A separate controlled Codex run must read this request, execute only the selected agent, and write results to:",
+            "",
+            "`output/`",
+            "",
+        ]
+    )
+    if agent == "source-analyst":
+        lines.extend(
+            [
+                "## Expected output for source-analyst",
+                "",
+                "If agent is `source-analyst`, expected output is:",
+                "",
+                "`output/source_digest.md`",
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def write_run_request_files(run_dir: Path, run_id: str, agent: str, goal: str, target_audience: str, source_files: list[str]) -> dict[str, object]:
+    ensure_run_structure(run_dir)
+    status_payload = {
+        "run_id": run_id,
+        "agent": agent,
+        "status": RUN_PENDING_STATUS,
+        "created_at_utc": utc_stamp(),
+        "goal": goal,
+        "target_audience": target_audience,
+        "source_files": [f"input/source_pack/{name}" for name in source_files],
+        "output_files": [],
+    }
+    (run_dir / RUN_INPUT_DIR).mkdir(parents=True, exist_ok=True)
+    (run_dir / RUN_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    (run_dir / RUN_LOG_DIR).mkdir(parents=True, exist_ok=True)
+    (run_dir / RUN_OUTPUT_DIR / ".gitkeep").touch(exist_ok=True)
+    (run_dir / RUN_LOG_DIR / ".gitkeep").touch(exist_ok=True)
+    run_request_path(run_dir).write_text(
+        run_request_markdown(run_id, agent, goal, target_audience, source_files),
+        encoding="utf-8",
+    )
+    run_status_path(run_dir).write_text(json.dumps(status_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return status_payload
+
+
+def store_run_source_file(run_dir: Path, filename: str, content: str) -> str:
+    if not is_safe_run_filename(filename, allowed_exts={".md"}):
+        raise ValueError("invalid source filename")
+    if len(content.encode("utf-8")) > MAX_CONTENT_BYTES:
+        raise ValueError("content exceeds 200 KB")
+    target = run_dir / RUN_INPUT_DIR / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.is_symlink():
+        raise ValueError("symlinked source file is not allowed")
+    target.write_text(content, encoding="utf-8", newline="\n")
+    return str(Path("input") / "source_pack" / filename)
+
+
+def read_run_file(run_id: str, kind: str, filename: str) -> tuple[Path, str]:
+    run_dir = resolve_run_dir(run_id, must_exist=True)
+    kind_map = {
+        "input": run_dir / RUN_INPUT_DIR,
+        "output": run_dir / RUN_OUTPUT_DIR,
+        "request": run_dir,
+        "log": run_dir / RUN_LOG_DIR,
+    }
+    if kind not in kind_map:
+        raise ValueError("invalid kind")
+    if not is_safe_run_filename(filename, allowed_exts=RUN_ALLOWED_READ_EXTS):
+        raise ValueError("invalid filename")
+    root = kind_map[kind]
+    target = root / filename
+    if target.is_symlink():
+        raise ValueError("symlinked file is not allowed")
+    if not target.exists() or not target.is_file():
+        raise FileNotFoundError(filename)
+    resolved = target.resolve(strict=True)
+    root_resolved = root.resolve(strict=True)
+    if root_resolved not in resolved.parents and resolved != root_resolved / filename:
+        raise ValueError("file escapes allowed root")
+    return resolved, str(Path(filename))
+
+
+def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
+    agent = safe_text(form.getfirst("agent", "")).strip()
+    goal = safe_text(form.getfirst("goal", "")).strip()
+    target_audience = safe_text(form.getfirst("target_audience", "")).strip()
+    if not agent or not is_safe_agent(agent):
+        raise ValueError("invalid agent")
+    if not goal:
+        raise ValueError("goal is required")
+    if not target_audience:
+        raise ValueError("target audience is required")
+
+    upload_items = [
+        item
+        for item in (form.list or [])
+        if getattr(item, "filename", None) and item.name in {"files", "files[]"}
+    ]
+    if not upload_items:
+        raise ValueError("at least one markdown source file is required")
+
+    source_files: list[str] = []
+    run_id = create_unique_run_id(agent)
+    run_dir = RUNS_ROOT / run_id
+    try:
+        ensure_run_structure(run_dir)
+
+        for item in upload_items:
+            filename = safe_text(item.filename).strip()
+            if not is_safe_run_filename(filename, allowed_exts={".md"}):
+                raise ValueError(f"invalid file name: {filename}")
+            item.file.seek(0)
+            raw = item.file.read()
+            if isinstance(raw, str):
+                content = raw
+            else:
+                content = raw.decode("utf-8")
+            source_files.append(filename)
+            store_run_source_file(run_dir, filename, content)
+
+        status_payload = write_run_request_files(run_dir, run_id, agent, goal, target_audience, source_files)
+        return {
+            "ok": True,
+            **status_payload,
+        }
+    except Exception:
+        shutil.rmtree(run_dir, ignore_errors=True)
+        raise
+
+
+def run_detail_payload(run_id: str) -> dict[str, object]:
+    run_dir = resolve_run_dir(run_id, must_exist=True)
+    status = load_run_status(run_dir)
+    request_md = run_request_path(run_dir).read_text(encoding="utf-8") if run_request_path(run_dir).exists() else ""
+    input_files = list_marked_files(run_dir / RUN_INPUT_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
+    output_files = list_marked_files(run_dir / RUN_OUTPUT_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
+    log_files = list_marked_files(run_dir / RUN_LOG_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
+    return {
+        "run_id": run_id,
+        "status_json": status,
+        "run_request_md": request_md,
+        "input_files": input_files,
+        "output_files": output_files,
+        "log_files": log_files,
+    }
 
 
 def api_file(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
@@ -426,6 +760,39 @@ def api_file(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
 
 def api_git_status() -> tuple[int, dict[str, object]]:
     return 200, git_status_payload()
+
+
+def api_runs_list() -> tuple[int, dict[str, object]]:
+    return 200, {"runs": list_runs_payload()}
+
+
+def api_runs_create(handler: BaseHTTPRequestHandler) -> tuple[int, dict[str, object]]:
+    form = parse_multipart_form(handler)
+    try:
+        payload = create_run_request_from_form(form)
+    except Exception:
+        raise
+    return 201, payload
+
+
+def api_runs_detail(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
+    run_id = query.get("run_id", [""])[0]
+    payload = run_detail_payload(run_id)
+    return 200, payload
+
+
+def api_runs_file(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
+    run_id = query.get("run_id", [""])[0]
+    kind = query.get("kind", [""])[0]
+    filename = query.get("filename", [""])[0]
+    path, _ = read_run_file(run_id, kind, filename)
+    return 200, {
+        "run_id": run_id,
+        "kind": kind,
+        "filename": filename,
+        "relative_path": str(path.relative_to(REPO_ROOT)),
+        "content": path.read_text(encoding="utf-8"),
+    }
 
 
 def store_markdown(agent: str, filename: str, content: str) -> dict[str, object]:
@@ -505,7 +872,10 @@ class AdminHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             if parsed.path == "/":
-                self.send_html(200, render_home())
+                self.send_html(200, render_page("home"))
+                return
+            if parsed.path == "/runs":
+                self.send_html(200, render_page("runs"))
                 return
             if parsed.path == "/api/file":
                 status, payload = api_file(parse_qs(parsed.query, keep_blank_values=True))
@@ -513,6 +883,18 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/git-status":
                 status, payload = api_git_status()
+                self.send_json(status, payload)
+                return
+            if parsed.path == "/api/runs":
+                status, payload = api_runs_list()
+                self.send_json(status, payload)
+                return
+            if parsed.path == "/api/runs/detail":
+                status, payload = api_runs_detail(parse_qs(parsed.query, keep_blank_values=True))
+                self.send_json(status, payload)
+                return
+            if parsed.path == "/api/runs/file":
+                status, payload = api_runs_file(parse_qs(parsed.query, keep_blank_values=True))
                 self.send_json(status, payload)
                 return
             if parsed.path.startswith("/static/"):
@@ -532,9 +914,13 @@ class AdminHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         try:
-            payload = json_body(self)
             if parsed.path in {"/api/save", "/api/upload"}:
+                payload = json_body(self)
                 status, response = api_save_or_upload(payload)
+                self.send_json(status, response)
+                return
+            if parsed.path == "/api/runs/create":
+                status, response = api_runs_create(self)
                 self.send_json(status, response)
                 return
             self.send_json(404, {"ok": False, "error": "not found"})

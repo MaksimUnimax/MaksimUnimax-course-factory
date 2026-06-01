@@ -31,6 +31,34 @@ header {
   padding: 24px 28px 12px;
 }
 
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.topnav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.topnav a {
+  text-decoration: none;
+  color: var(--accent-strong);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+}
+
+body[data-page="home"] .page-runs,
+body[data-page="runs"] .page-home {
+  display: none;
+}
+
 h1, h2, h3 {
   margin: 0 0 8px;
   line-height: 1.15;
@@ -55,6 +83,10 @@ p {
   grid-template-columns: 280px minmax(0, 1fr) 320px;
   gap: 16px;
   padding: 16px 20px 24px;
+}
+
+.runs-shell {
+  grid-template-columns: 300px minmax(0, 360px) minmax(0, 1fr);
 }
 
 .panel {
@@ -118,11 +150,52 @@ p {
   font-size: 13px;
 }
 
+.agent-card .description {
+  color: var(--accent-strong);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
 .file-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 10px;
+}
+
+.run-list,
+.run-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.run-card,
+.run-file-button {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.run-card.active,
+.run-file-button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.run-card .title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.run-card .meta,
+.run-file-button .meta {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .file-item {
@@ -244,6 +317,64 @@ button:hover {
   border-radius: 12px;
   padding: 10px;
   min-height: 132px;
+}
+
+.run-form,
+.run-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--accent-strong);
+}
+
+.field span {
+  font-weight: 700;
+}
+
+.field input,
+.field select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--text);
+}
+
+.run-code {
+  white-space: pre-wrap;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  background: #f8faf9;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 120px;
+  overflow: auto;
+}
+
+.run-file-view {
+  min-height: 26vh;
+}
+
+.run-file-list {
+  padding: 0;
+}
+
+.run-file-button {
+  width: 100%;
+}
+
+.run-file-button .title {
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
 @media (max-width: 1200px) {
