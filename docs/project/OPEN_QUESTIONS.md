@@ -1,9 +1,14 @@
 # Open questions
 
-- Which source pack should be used for the first proof?
-- Should the first proof use OpenScript workflow documents or a smaller synthetic source pack?
-- How strict should source grounding be in the first MVP?
-- What output format should the first generated course use?
-- Which quality gates are mandatory before accepting a generated lesson?
-- How should additional domain-specific methodology sources be added for school subjects, software training, equipment training, or safety-critical topics?
-- Should agents be implemented as separate prompts first, or as file-based role contracts before any runtime integration?
+- Is the first Source Analyst output good enough to pass into Course Architect?
+- Should Source Analyst be required to cite source sections or file paths for every major conclusion?
+- Should `source_digest.md` be renamed in UI/user-facing copy to “Разбор исходных материалов”?
+- Should run output stay committed in `runs/**`, or should only curated test fixtures move to `test_cases/**`?
+- Should Course Architect read only the accepted `source_digest.md`, or also the original source material?
+- What exact output contract should Course Architect use for the first curriculum map?
+- How should the admin show accepted/rejected run outputs?
+- Should the UI add a “copy run_id” button?
+- Should the UI add a “review result” status separate from `completed_success`?
+- When should public admin move from Basic Auth MVP to stronger auth/HTTPS?
+- Should Course Factory later add a reusable source library separate from per-run upload?
+- What exact output format should final generated courses use?

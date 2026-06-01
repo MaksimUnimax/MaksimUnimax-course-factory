@@ -1,37 +1,105 @@
 # Roadmap
 
-## Stage 0 — Bootstrap
+## Stage 0 — Separate Course Factory repo and deploy key
 
 Status: completed.
 
-Created isolated repository and project documentation skeleton.
+Created isolated repository, deploy key, initial documentation skeleton, and public GitHub push.
 
-## Stage 1 — Methodology
+## Stage 1 — Methodology baseline v0.1
 
 Status: completed.
 
-Define the Course Factory method, method sources, source policy, agent roles, artifact contracts, quality rubric, examples, and test cases.
+Defined the Course Factory method, method sources, source policy, agent roles, artifact contracts, quality rubric, examples, and test cases.
 
-## Stage 2 — Admin MVP with Basic Auth and file-based agent/skill test bench
+## Stage 2 — Agent documents and editable admin MVP
 
-Status: in progress.
+Status: completed.
 
-Create a localhost-only and password-protected public markdown admin for `skills/` and test file-based skills/agents on one controlled source pack.
+Created initial agent directories and markdown contracts.
 
-## Stage 3 — First source-to-course proof
+Created admin UI for:
 
-Status: next.
+- viewing agent documents;
+- editing markdown;
+- uploading/replacing markdown;
+- viewing git status.
 
-Use a small source pack to produce source digest, course map, one lesson blueprint, one lesson, and a review report.
+## Stage 3 — Public Basic Auth live admin
 
-## Stage 4 — Minimal live preview
+Status: completed.
+
+Admin MVP is available at:
+
+`http://78.17.68.165:8091/`
+
+The admin is protected by HTTP Basic Auth.
+
+This is MVP security only, not a production-grade security model.
+
+## Stage 4 — Selected-agent run request UI
+
+Status: completed.
+
+The `/runs` page creates selected-agent run requests.
+
+The UI does not execute Codex/model calls.
+
+The UI does not run all agents.
+
+A run request stores uploaded source materials under:
+
+`runs/<run_id>/input/source_pack/`
+
+Expected outputs are written by separate controlled Codex runs under:
+
+`runs/<run_id>/output/`
+
+## Stage 5 — First Source Analyst controlled execution
+
+Status: completed.
+
+Completed run:
+
+`20260601_102242_source-analyst`
+
+Output:
+
+`runs/20260601_102242_source-analyst/output/source_digest.md`
+
+Result:
+
+`completed_success`
+
+## Stage 6 — Source Analyst result review
+
+Status: current.
+
+Review the first `source_digest.md`.
+
+Decide whether it is acceptable for Course Architect or whether Source Analyst contracts need stricter source traceability.
+
+## Stage 7 — Course Architect controlled execution
+
+Status: next after review.
+
+Use the accepted source digest to create a curriculum map.
+
+## Stage 8 — Additional agents one by one
 
 Status: later.
 
-Create a read-only preview for generated artifacts.
+Add and test:
 
-## Stage 5 — Tool/backend design
+- Lesson Designer;
+- Lesson Writer;
+- Assessment Designer;
+- Quality Reviewer;
+- Grounding Reviewer;
+- Publisher.
+
+## Stage 9 — Real backend/tool architecture
 
 Status: later.
 
-Only after the workflow quality is proven, design a real server/tool architecture.
+Only after the file-based workflow quality is proven, design a real server/tool architecture.
