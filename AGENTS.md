@@ -31,3 +31,13 @@ All changes must be git-tracked.
 Course and lesson content must be source-grounded.
 
 Agents must not invent facts that are not present in provided source materials unless explicitly marked as instructional inference.
+
+## Local admin MVP
+
+The admin server must bind only to `127.0.0.1:8091`.
+
+Editable scope is limited to markdown files under `skills/`.
+
+Do not allow arbitrary file paths, symlink escapes, or hidden files.
+
+Saving changes updates the file locally only. Commit and push are separate Codex runs.

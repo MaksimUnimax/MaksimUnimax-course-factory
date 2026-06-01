@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Course Factory Agent Admin</title>
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <header>
+    <h1>Course Factory Agent Admin</h1>
+    <p class="small">Локальная панель для markdown-агентов и file-based test bench.</p>
+    <div class="warning">MVP локальный. Не открывать наружу без авторизации.</div>
+  </header>
+
+  <main class="shell">
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Агенты</h2>
+        <p class="small">Карточки и вкладки берутся из папки <code>skills/</code>.</p>
+      </div>
+      <div class="agent-list" id="agent-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Markdown-редактор</h2>
+        <p class="small">Сохранение меняет файл локально. Commit/push выполняются отдельным Codex-run.</p>
+      </div>
+      <div class="panel-body editor">
+        <div class="small">Агент: <strong id="current-agent">-</strong> · Файл: <strong id="current-file">-</strong></div>
+        <div class="small">Путь: <span id="file-path">-</span></div>
+        <div class="small">Изменён: <span id="file-mtime">-</span></div>
+        <textarea id="editor" spellcheck="false" placeholder="Выберите markdown-файл"></textarea>
+        <div class="actions">
+          <div class="span-2">
+            <label class="small" for="filename">Имя файла для локального сохранения</label>
+            <input id="filename" type="text" placeholder="EXAMPLE.md">
+          </div>
+          <button id="save-button">Сохранить локально</button>
+          <button id="refresh-button" class="secondary">Обновить git status</button>
+          <div class="span-2">
+            <label class="small" for="upload-input">Заменить/загрузить markdown-файл</label>
+            <input id="upload-input" type="file" accept=".md,text/markdown">
+          </div>
+          <div class="span-2">
+            <label class="small" for="upload-filename">Имя файла после загрузки</label>
+            <input id="upload-filename" type="text" placeholder="NEW_FILE.md">
+          </div>
+          <button id="upload-button" class="secondary span-2">Загрузить markdown локально</button>
+        </div>
+        <div id="message" class="warning">Готово к локальному редактированию.</div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-header">
+        <h2>Git status</h2>
+        <p class="small">Отображает локальное состояние и remote main.</p>
+      </div>
+      <div class="panel-body">
+        <div id="git-status" class="git-lines">Loading...</div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    window.__CF_STATE__ = __STATE_JSON__;
+  </script>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

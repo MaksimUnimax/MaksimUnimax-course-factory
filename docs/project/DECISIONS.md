@@ -15,3 +15,5 @@ The initial methodology baseline uses The Carpentries, Open University Learning 
 Course Factory must not create courses from imagination. It must use source materials and explicit methodology sources.
 
 The first implementation direction is file-based test bench, not backend-first development.
+
+A local-only admin MVP is acceptable if it stays file-based, git-trackable, and restricted to markdown files under `skills/`.

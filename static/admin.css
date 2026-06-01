@@ -1,0 +1,251 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --panel: #ffffff;
+  --panel-soft: #fbfaf7;
+  --text: #1f2933;
+  --muted: #5f6b7a;
+  --line: #d7d2c8;
+  --accent: #315a5c;
+  --accent-strong: #1f3f41;
+  --accent-soft: #dbe8e8;
+  --danger: #8b2f2f;
+  --shadow: 0 10px 30px rgba(31, 41, 51, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Trebuchet MS", Georgia, serif;
+  background:
+    radial-gradient(circle at top left, rgba(49, 90, 92, 0.08), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(139, 47, 47, 0.05), transparent 22%),
+    var(--bg);
+  color: var(--text);
+}
+
+header {
+  padding: 24px 28px 12px;
+}
+
+h1, h2, h3 {
+  margin: 0 0 8px;
+  line-height: 1.15;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+.warning {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--danger);
+  background: #fffaf7;
+  border-radius: 12px;
+  color: #5e2a2a;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  gap: 16px;
+  padding: 16px 20px 24px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-soft), #fff);
+}
+
+.panel-body {
+  padding: 14px 16px 16px;
+}
+
+.agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.agent-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.agent-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(49, 90, 92, 0.35);
+  box-shadow: 0 6px 16px rgba(31, 41, 51, 0.06);
+}
+
+.agent-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(49, 90, 92, 0.12);
+}
+
+.agent-card .name {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.agent-card .meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.file-item:hover {
+  border-color: rgba(49, 90, 92, 0.38);
+}
+
+.file-item.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.file-name {
+  font-weight: 600;
+}
+
+.file-meta {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-box {
+  white-space: pre-wrap;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #0f1720;
+  color: #d7e5e5;
+  border-radius: 14px;
+  padding: 12px;
+  min-height: 180px;
+  overflow: auto;
+}
+
+textarea {
+  width: 100%;
+  min-height: 56vh;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  resize: vertical;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  background: #fffdf8;
+}
+
+input[type="text"],
+input[type="file"] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--text);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.actions .span-2 {
+  grid-column: 1 / -1;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 14px;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #edf2f2;
+  color: var(--accent-strong);
+  border: 1px solid rgba(49, 90, 92, 0.18);
+}
+
+button:hover {
+  filter: brightness(0.98);
+}
+
+.small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.git-lines {
+  white-space: pre-wrap;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  background: #f8faf9;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 132px;
+}
+
+@media (max-width: 1200px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  textarea {
+    min-height: 42vh;
+  }
+}

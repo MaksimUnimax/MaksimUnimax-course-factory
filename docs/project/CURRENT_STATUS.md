@@ -1,13 +1,13 @@
 # Current status
 
-Course Factory repository bootstrap is complete.
+Course Factory now has a local-only agent admin MVP.
 
-The local repository at `/opt/course-factory` has been created and pushed to the public GitHub repository.
+The repository at `/opt/course-factory` remains pushed to the public GitHub repository.
 
 Current stage:
 
-Stage 1 — Methodology.
+Stage 2 — Local admin MVP and file-based agent/skill test bench.
 
-No backend, UI, runtime service, or production deployment has been approved yet.
+No production backend, public UI, runtime service, or production deployment has been approved yet.
 
-The immediate priority is methodology baseline, then a file-based agent/skill test bench.
+The immediate priority is using the admin to edit markdown files in `skills/`, then building the file-based agent/skill test bench.

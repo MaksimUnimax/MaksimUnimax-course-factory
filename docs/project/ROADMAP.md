@@ -8,19 +8,19 @@ Created isolated repository and project documentation skeleton.
 
 ## Stage 1 — Methodology
 
-Status: in progress.
+Status: completed.
 
 Define the Course Factory method, method sources, source policy, agent roles, artifact contracts, quality rubric, examples, and test cases.
 
-## Stage 2 — Agent/skill test bench
+## Stage 2 — Local admin MVP and file-based agent/skill test bench
 
-Status: next.
+Status: in progress.
 
-Create file-based skills/agents and test them on one controlled source pack.
+Create a localhost-only markdown admin for `skills/` and test file-based skills/agents on one controlled source pack.
 
 ## Stage 3 — First source-to-course proof
 
-Status: later.
+Status: next.
 
 Use a small source pack to produce source digest, course map, one lesson blueprint, one lesson, and a review report.
 
