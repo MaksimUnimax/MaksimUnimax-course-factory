@@ -347,6 +347,10 @@ button:hover {
   color: var(--text);
 }
 
+.field .small {
+  line-height: 1.35;
+}
+
 .run-code {
   white-space: pre-wrap;
   font-family: "SFMono-Regular", Consolas, monospace;

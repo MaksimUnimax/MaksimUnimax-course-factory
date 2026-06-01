@@ -80,6 +80,21 @@ SERVER_HOST = HOST_DEFAULT
 SERVER_PORT = PORT_DEFAULT
 
 
+class ApiError(Exception):
+    def __init__(self, code: str, message: str, status: int = 400) -> None:
+        super().__init__(message)
+        self.code = code
+        self.status = status
+
+
+def api_ok(payload: dict[str, object]) -> dict[str, object]:
+    return {"ok": True, **payload}
+
+
+def api_error_payload(code: str, message: str) -> dict[str, object]:
+    return {"ok": False, "code": code, "error": message}
+
+
 def run_git(args: list[str], *, timeout: int = 10, extra_env: dict[str, str] | None = None) -> tuple[int, str]:
     env = os.environ.copy()
     if extra_env:
@@ -457,12 +472,12 @@ def is_safe_run_filename(filename: str, *, allowed_exts: set[str] | None = None)
 
 def resolve_run_dir(run_id: str, *, must_exist: bool = False) -> Path:
     if not is_safe_run_id(run_id):
-        raise ValueError("invalid run_id")
+        raise ApiError("INVALID_RUN_ID", "Некорректный идентификатор запуска.")
     run_dir = RUNS_ROOT / run_id
     if run_dir.is_symlink():
-        raise ValueError("symlinked run directory is not allowed")
+        raise ApiError("RUN_PATH_FORBIDDEN", "Символьные ссылки для запуска запрещены.")
     if must_exist and not run_dir.exists():
-        raise FileNotFoundError(run_id)
+        raise ApiError("RUN_NOT_FOUND", "Запуск не найден.", status=404)
     return run_dir
 
 
@@ -518,7 +533,7 @@ def run_request_path(run_dir: Path) -> Path:
 def load_run_status(run_dir: Path) -> dict[str, object]:
     status_path = run_status_path(run_dir)
     if not status_path.exists():
-        raise FileNotFoundError(RUN_STATUS_FILENAME)
+        raise ApiError("RUN_STATUS_NOT_FOUND", "Файл status.json не найден.", status=404)
     return json.loads(status_path.read_text(encoding="utf-8"))
 
 
@@ -553,7 +568,7 @@ def list_runs_payload() -> list[dict[str, object]]:
 
 def find_agent_slug(agent: str) -> str:
     if not is_safe_agent(agent):
-        raise ValueError("invalid agent")
+        raise ApiError("INVALID_AGENT", "Некорректный агент.")
     return agent
 
 
@@ -644,9 +659,9 @@ def write_run_request_files(run_dir: Path, run_id: str, agent: str, goal: str, t
 
 def store_run_source_file(run_dir: Path, filename: str, content: str) -> str:
     if not is_safe_run_filename(filename, allowed_exts={".md"}):
-        raise ValueError("invalid source filename")
+        raise ApiError("INVALID_SOURCE_FILENAME", "Некорректное имя исходного markdown-файла.")
     if len(content.encode("utf-8")) > MAX_CONTENT_BYTES:
-        raise ValueError("content exceeds 200 KB")
+        raise ApiError("CONTENT_TOO_LARGE", "Файл превышает 200 KB.")
     target = run_dir / RUN_INPUT_DIR / filename
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_symlink():
@@ -664,19 +679,19 @@ def read_run_file(run_id: str, kind: str, filename: str) -> tuple[Path, str]:
         "log": run_dir / RUN_LOG_DIR,
     }
     if kind not in kind_map:
-        raise ValueError("invalid kind")
+        raise ApiError("INVALID_KIND", "Недопустимый kind.")
     if not is_safe_run_filename(filename, allowed_exts=RUN_ALLOWED_READ_EXTS):
-        raise ValueError("invalid filename")
+        raise ApiError("INVALID_FILENAME", "Некорректное имя файла.")
     root = kind_map[kind]
     target = root / filename
     if target.is_symlink():
-        raise ValueError("symlinked file is not allowed")
+        raise ApiError("FILE_PATH_FORBIDDEN", "Символьные ссылки для файлов запрещены.")
     if not target.exists() or not target.is_file():
-        raise FileNotFoundError(filename)
+        raise ApiError("FILE_NOT_FOUND", "Файл не найден.", status=404)
     resolved = target.resolve(strict=True)
     root_resolved = root.resolve(strict=True)
     if root_resolved not in resolved.parents and resolved != root_resolved / filename:
-        raise ValueError("file escapes allowed root")
+        raise ApiError("FILE_PATH_FORBIDDEN", "Файл выходит за пределы разрешённой папки.")
     return resolved, str(Path(filename))
 
 
@@ -685,11 +700,11 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
     goal = safe_text(form.getfirst("goal", "")).strip()
     target_audience = safe_text(form.getfirst("target_audience", "")).strip()
     if not agent or not is_safe_agent(agent):
-        raise ValueError("invalid agent")
+        raise ApiError("INVALID_AGENT", "Выберите корректного агента.")
     if not goal:
-        raise ValueError("goal is required")
+        raise ApiError("GOAL_REQUIRED", "Укажите цель запуска.")
     if not target_audience:
-        raise ValueError("target audience is required")
+        raise ApiError("TARGET_AUDIENCE_REQUIRED", "Укажите целевую аудиторию.")
 
     upload_items = [
         item
@@ -697,7 +712,7 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
         if getattr(item, "filename", None) and item.name in {"files", "files[]"}
     ]
     if not upload_items:
-        raise ValueError("at least one markdown source file is required")
+        raise ApiError("SOURCE_FILES_REQUIRED", "Добавьте хотя бы один markdown-файл.")
 
     source_files: list[str] = []
     run_id = create_unique_run_id(agent)
@@ -708,7 +723,7 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
         for item in upload_items:
             filename = safe_text(item.filename).strip()
             if not is_safe_run_filename(filename, allowed_exts={".md"}):
-                raise ValueError(f"invalid file name: {filename}")
+                raise ApiError("INVALID_SOURCE_FILENAME", f"Некорректное имя файла: {filename}")
             item.file.seek(0)
             raw = item.file.read()
             if isinstance(raw, str):
@@ -736,6 +751,7 @@ def run_detail_payload(run_id: str) -> dict[str, object]:
     output_files = list_marked_files(run_dir / RUN_OUTPUT_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
     log_files = list_marked_files(run_dir / RUN_LOG_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
     return {
+        "ok": True,
         "run_id": run_id,
         "status_json": status,
         "run_request_md": request_md,
@@ -750,12 +766,12 @@ def api_file(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
     filename = query.get("filename", [""])[0]
     path = resolve_markdown_path(agent, filename)
     content = read_markdown(path)
-    return 200, {
+    return 200, api_ok({
         "agent": agent,
         "filename": filename,
         "relative_path": str(path.relative_to(REPO_ROOT)),
         "content": content,
-    }
+    })
 
 
 def api_git_status() -> tuple[int, dict[str, object]]:
@@ -763,22 +779,19 @@ def api_git_status() -> tuple[int, dict[str, object]]:
 
 
 def api_runs_list() -> tuple[int, dict[str, object]]:
-    return 200, {"runs": list_runs_payload()}
+    return 200, api_ok({"runs": list_runs_payload()})
 
 
 def api_runs_create(handler: BaseHTTPRequestHandler) -> tuple[int, dict[str, object]]:
     form = parse_multipart_form(handler)
-    try:
-        payload = create_run_request_from_form(form)
-    except Exception:
-        raise
-    return 201, payload
+    payload = create_run_request_from_form(form)
+    return 201, api_ok(payload)
 
 
 def api_runs_detail(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
     run_id = query.get("run_id", [""])[0]
     payload = run_detail_payload(run_id)
-    return 200, payload
+    return 200, api_ok(payload)
 
 
 def api_runs_file(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
@@ -786,13 +799,13 @@ def api_runs_file(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
     kind = query.get("kind", [""])[0]
     filename = query.get("filename", [""])[0]
     path, _ = read_run_file(run_id, kind, filename)
-    return 200, {
+    return 200, api_ok({
         "run_id": run_id,
         "kind": kind,
         "filename": filename,
         "relative_path": str(path.relative_to(REPO_ROOT)),
         "content": path.read_text(encoding="utf-8"),
-    }
+    })
 
 
 def store_markdown(agent: str, filename: str, content: str) -> dict[str, object]:
@@ -852,6 +865,9 @@ class AdminHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_api_error(self, status: int, code: str, message: str) -> None:
+        self.send_json(status, api_error_payload(code, message))
+
     def reject_unauthorized(self) -> None:
         body = "Доступ запрещён: нужен логин и пароль.".encode("utf-8")
         self.send_response(401)
@@ -870,6 +886,7 @@ class AdminHandler(BaseHTTPRequestHandler):
             self.reject_unauthorized()
             return
         parsed = urlparse(self.path)
+        is_api_route = parsed.path.startswith("/api/")
         try:
             if parsed.path == "/":
                 self.send_html(200, render_page("home"))
@@ -900,19 +917,37 @@ class AdminHandler(BaseHTTPRequestHandler):
             if parsed.path.startswith("/static/"):
                 self.serve_static(parsed.path[len("/static/"):])
                 return
-            self.send_json(404, {"ok": False, "error": "not found"})
+            if is_api_route:
+                self.send_api_error(404, "NOT_FOUND", "Маршрут API не найден.")
+            else:
+                self.send_json(404, {"ok": False, "error": "not found"})
+        except ApiError as exc:
+            if is_api_route:
+                self.send_api_error(exc.status, exc.code, str(exc))
+            else:
+                self.send_json(exc.status, {"ok": False, "error": str(exc), "code": exc.code})
         except FileNotFoundError as exc:
-            self.send_json(404, {"ok": False, "error": f"file not found: {exc}"})
+            if is_api_route:
+                self.send_api_error(404, "NOT_FOUND", f"Файл не найден: {exc}")
+            else:
+                self.send_json(404, {"ok": False, "error": f"file not found: {exc}"})
         except ValueError as exc:
-            self.send_json(400, {"ok": False, "error": str(exc)})
+            if is_api_route:
+                self.send_api_error(400, "BAD_REQUEST", str(exc))
+            else:
+                self.send_json(400, {"ok": False, "error": str(exc)})
         except Exception as exc:  # pragma: no cover - defensive error path
-            self.send_json(500, {"ok": False, "error": f"internal error: {exc}"})
+            if is_api_route:
+                self.send_api_error(500, "INTERNAL_ERROR", f"Внутренняя ошибка: {exc}")
+            else:
+                self.send_json(500, {"ok": False, "error": f"internal error: {exc}"})
 
     def do_POST(self) -> None:
         if not self.is_authorized():
             self.reject_unauthorized()
             return
         parsed = urlparse(self.path)
+        is_api_route = parsed.path.startswith("/api/")
         try:
             if parsed.path in {"/api/save", "/api/upload"}:
                 payload = json_body(self)
@@ -923,15 +958,35 @@ class AdminHandler(BaseHTTPRequestHandler):
                 status, response = api_runs_create(self)
                 self.send_json(status, response)
                 return
-            self.send_json(404, {"ok": False, "error": "not found"})
+            if is_api_route:
+                self.send_api_error(404, "NOT_FOUND", "Маршрут API не найден.")
+            else:
+                self.send_json(404, {"ok": False, "error": "not found"})
+        except ApiError as exc:
+            if is_api_route:
+                self.send_api_error(exc.status, exc.code, str(exc))
+            else:
+                self.send_json(exc.status, {"ok": False, "error": str(exc), "code": exc.code})
         except FileNotFoundError as exc:
-            self.send_json(404, {"ok": False, "error": f"file not found: {exc}"})
+            if is_api_route:
+                self.send_api_error(404, "NOT_FOUND", f"Файл не найден: {exc}")
+            else:
+                self.send_json(404, {"ok": False, "error": f"file not found: {exc}"})
         except ValueError as exc:
-            self.send_json(400, {"ok": False, "error": str(exc)})
+            if is_api_route:
+                self.send_api_error(400, "BAD_REQUEST", str(exc))
+            else:
+                self.send_json(400, {"ok": False, "error": str(exc)})
         except json.JSONDecodeError as exc:
-            self.send_json(400, {"ok": False, "error": f"invalid JSON: {exc}"})
+            if is_api_route:
+                self.send_api_error(400, "INVALID_JSON", f"Неверный JSON: {exc}")
+            else:
+                self.send_json(400, {"ok": False, "error": f"invalid JSON: {exc}"})
         except Exception as exc:  # pragma: no cover - defensive error path
-            self.send_json(500, {"ok": False, "error": f"internal error: {exc}"})
+            if is_api_route:
+                self.send_api_error(500, "INTERNAL_ERROR", f"Внутренняя ошибка: {exc}")
+            else:
+                self.send_json(500, {"ok": False, "error": f"internal error: {exc}"})
 
     def serve_static(self, relative_name: str) -> None:
         if ".." in relative_name or relative_name.startswith("/"):

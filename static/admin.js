@@ -2,6 +2,7 @@
   const state = window.__CF_STATE__ || {};
   const page = state.page || document.body.dataset.page || "home";
   const agents = state.agents || [];
+  const RUNS_DRAFT_KEY = "course_factory_runs_form_draft_v1";
   const warningBox = document.getElementById("page-warning");
   const gitBox = document.getElementById("git-status");
 
@@ -28,6 +29,7 @@
     goal: document.getElementById("run-goal"),
     targetAudience: document.getElementById("run-target-audience"),
     sourceFiles: document.getElementById("run-source-files"),
+    sourceHint: document.getElementById("run-source-hint"),
     createButton: document.getElementById("create-run-button"),
     createMessage: document.getElementById("run-create-message"),
     detailId: document.getElementById("run-detail-id"),
@@ -49,6 +51,7 @@
   let selectedFile = null;
   let selectedRunId = null;
   let selectedRunFileKey = null;
+  let runDraftRestoreApplied = false;
 
   function setMessage(target, text, tone = "info") {
     if (!target) return;
@@ -71,14 +74,95 @@
 
   async function fetchJson(url, options) {
     const response = await fetch(url, options);
-    const data = await response.json();
+    const text = await response.text();
+    let data = {};
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text };
+      }
+    }
     if (!response.ok) {
       const error = new Error(data.error || `HTTP ${response.status}`);
       error.response = response;
       error.data = data;
+      error.status = response.status;
       throw error;
     }
     return data;
+  }
+
+  function describeError(error, fallback) {
+    if (error && error.data && typeof error.data === "object") {
+      const pieces = [];
+      if (error.data.error) pieces.push(error.data.error);
+      if (error.data.code) pieces.push(`код: ${error.data.code}`);
+      if (pieces.length) return pieces.join(" ");
+    }
+    if (error && error.message) {
+      return error.message;
+    }
+    if (error && error.status) {
+      return `HTTP ${error.status}`;
+    }
+    return fallback;
+  }
+
+  function getRunDraft() {
+    try {
+      const raw = localStorage.getItem(RUNS_DRAFT_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveRunDraft() {
+    if (!runs.agentSelect || !runs.goal || !runs.targetAudience) return;
+    const payload = {
+      agent: runs.agentSelect.value || "",
+      goal: runs.goal.value || "",
+      targetAudience: runs.targetAudience.value || "",
+    };
+    try {
+      localStorage.setItem(RUNS_DRAFT_KEY, JSON.stringify(payload));
+    } catch {
+      // localStorage may be unavailable in hardened browsers; ignore.
+    }
+  }
+
+  function restoreRunDraft() {
+    if (runDraftRestoreApplied || !runs.agentSelect || !runs.goal || !runs.targetAudience) return;
+    const draft = getRunDraft();
+    if (draft.goal) runs.goal.value = draft.goal;
+    if (draft.targetAudience) runs.targetAudience.value = draft.targetAudience;
+    if (draft.agent && Array.from(runs.agentSelect.options).some((option) => option.value === draft.agent)) {
+      runs.agentSelect.value = draft.agent;
+    }
+    runDraftRestoreApplied = true;
+    updateRunSourceHint();
+  }
+
+  function updateRunSourceHint() {
+    if (!runs.sourceHint) return;
+    const names = runs.sourceFiles && runs.sourceFiles.files ? Array.from(runs.sourceFiles.files).map((file) => file.name) : [];
+    if (names.length) {
+      runs.sourceHint.textContent = `Выбраны файлы: ${names.join(", ")}`;
+    } else {
+      runs.sourceHint.textContent = "После обновления страницы исходные файлы нужно выбрать заново — браузер не разрешает восстанавливать file input автоматически.";
+    }
+  }
+
+  function syncRunDraftFromUI() {
+    saveRunDraft();
+    updateRunSourceHint();
+  }
+
+  function setCreateButtonBusy(isBusy) {
+    if (!runs.createButton) return;
+    runs.createButton.disabled = isBusy;
+    runs.createButton.textContent = isBusy ? "Создаём заявку..." : "Создать запуск выбранного агента";
   }
 
   function renderAgentCards() {
@@ -338,7 +422,7 @@
     const data = await fetchJson(`/api/runs/file?run_id=${encodeURIComponent(runId)}&kind=${encodeURIComponent(kind)}&filename=${encodeURIComponent(filename)}`)
       .catch((error) => ({ ok: false, error: error.message, data: error.data }));
     if (!data.ok) {
-      runs.fileView.value = data.error || "Не удалось прочитать файл";
+      runs.fileView.value = `Не удалось прочитать файл: ${describeError(data, "неизвестная ошибка")}`;
       updateRunSelection();
       return;
     }
@@ -382,16 +466,20 @@
   }
 
   async function loadRunDetail(runId, options = {}) {
-    const data = await fetchJson(`/api/runs/detail?run_id=${encodeURIComponent(runId)}`).catch((error) => ({ ok: false, error: error.message, data: error.data }));
+    const data = await fetchJson(`/api/runs/detail?run_id=${encodeURIComponent(runId)}`).catch((error) => ({ ok: false, error: error.message, data: error.data, status: error.status }));
     if (!data.ok) {
-      setMessage(runs.createMessage, data.error || "Не удалось прочитать запуск", "error");
-      return;
+      const message = `Не удалось прочитать запуск: ${describeError(data, "неизвестная ошибка")}`;
+      if (!options.silent) {
+        setMessage(runs.createMessage, message, "error");
+      }
+      return { ok: false, error: message };
     }
     renderRunDetail(data);
     if (!options.skipFirstOutput && (data.output_files || []).length) {
       const first = data.output_files[0];
       await loadRunFile(runId, "output", first);
     }
+    return { ok: true };
   }
 
   function renderRunsList(items) {
@@ -422,8 +510,8 @@
     if (!runs.list) return;
     const data = await fetchJson("/api/runs").catch((error) => ({ ok: false, error: error.message, data: error.data }));
     if (!data.ok) {
-      runs.list.innerHTML = `<div class="small">${escapeHtml(data.error || "Не удалось получить список запусков")}</div>`;
-      return;
+      runs.list.innerHTML = `<div class="small">Не удалось получить список запусков: ${escapeHtml(describeError(data, "неизвестная ошибка"))}</div>`;
+      return { ok: false, error: describeError(data, "неизвестная ошибка") };
     }
     renderRunsList(data.runs || []);
     if (!keepSelection) {
@@ -437,6 +525,7 @@
         await loadRunDetail(data.runs[0].run_id);
       }
     }
+    return { ok: true };
   }
 
   async function createRun() {
@@ -470,22 +559,46 @@
       form.append("files[]", file, file.name);
     });
 
-    setMessage(runs.createMessage, "Создание заявки на запуск...");
-    const response = await fetch("/api/runs/create", {
-      method: "POST",
-      body: form,
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(runs.createMessage, data.error || "Не удалось создать заявку", "error");
-      return;
+    setCreateButtonBusy(true);
+    setMessage(runs.createMessage, "Создаём заявку...");
+    try {
+      const response = await fetch("/api/runs/create", {
+        method: "POST",
+        body: form,
+      });
+      const text = await response.text();
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: text };
+        }
+      }
+      if (!response.ok || !data.ok) {
+        const details = describeError({ message: data.error || `HTTP ${response.status}`, data, status: response.status }, "неизвестная ошибка");
+        setMessage(runs.createMessage, `Не удалось создать заявку: ${details}`, "error");
+        return;
+      }
+
+      saveRunDraft();
+      setMessage(runs.createMessage, `Создан запуск ${data.run_id} со статусом ${data.status}.`);
+      const listResult = await refreshRuns(true);
+      if (!listResult || listResult.ok === false) {
+        setMessage(runs.createMessage, `Заявка создана, но список запусков не обновился: ${listResult?.error || "неизвестная ошибка"}`, "error");
+      }
+      const detailResult = await loadRunDetail(data.run_id, { silent: true, skipFirstOutput: false });
+      if (!detailResult || detailResult.ok === false) {
+        const details = detailResult?.error || "неизвестная ошибка";
+        setMessage(runs.createMessage, `Заявка создана, но не удалось открыть детали. Run ID: ${data.run_id}. Обновите список запусков. ${details}`, "error");
+      } else {
+        setMessage(runs.createMessage, `Создан запуск ${data.run_id} со статусом ${data.status}.`);
+      }
+      updateRunSourceHint();
+    } finally {
+      setCreateButtonBusy(false);
+      saveRunDraft();
     }
-    setMessage(runs.createMessage, `Создан запуск ${data.run_id} со статусом ${data.status}.`);
-    runs.goal.value = "";
-    runs.targetAudience.value = "";
-    runs.sourceFiles.value = "";
-    await refreshRuns(false);
-    await loadRunDetail(data.run_id);
   }
 
   function initHome() {
@@ -510,15 +623,27 @@
 
   function initRuns() {
     renderAgentSelect();
+    restoreRunDraft();
     if (runs.createButton) runs.createButton.addEventListener("click", createRun);
+    if (runs.agentSelect) {
+      runs.agentSelect.addEventListener("change", syncRunDraftFromUI);
+    }
+    if (runs.goal) {
+      runs.goal.addEventListener("input", syncRunDraftFromUI);
+    }
+    if (runs.targetAudience) {
+      runs.targetAudience.addEventListener("input", syncRunDraftFromUI);
+    }
     if (runs.sourceFiles) {
       runs.sourceFiles.addEventListener("change", () => {
+        updateRunSourceHint();
         if (!runs.goal.value.trim()) {
           setMessage(runs.createMessage, "Добавлены файлы для новой заявки.");
         }
       });
     }
     refreshRuns().catch(() => {});
+    updateRunSourceHint();
   }
 
   if (warningBox && state.warning) {
