@@ -98,88 +98,178 @@
             <span>Агент</span>
             <select id="run-agent-select"></select>
           </label>
-          <div class="small">Задание на курс</div>
-          <div class="small">Эти настройки сохраняются как "Задание на курс" и передаются следующим агентам автоматически.</div>
+          <div class="small">Исходные документы задают тему курса. Эти настройки задают формат, уровень, практику, проверку и границы курса. Они сохраняются как "Задание на курс" и передаются следующим агентам автоматически.</div>
           <div class="course-setup-grid">
             <label class="field">
               <span>Тип курса</span>
               <select id="run-course-type">
-                <option selected>Практический вводный курс</option>
-                <option>Мини-курс</option>
-                <option>Пошаговый туториал</option>
-                <option>Внутренний обучающий курс</option>
+                <option>Вводный курс</option>
+                <option>Практический курс</option>
+                <option>Пошаговый учебный проект</option>
+                <option>Курс с разбором примеров</option>
+                <option>Курс для повторения и закрепления</option>
+                <option>Курс для подготовки к проверке знаний</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
             <label class="field">
               <span>Для кого курс</span>
               <select id="run-target-audience-type">
-                <option selected>Абсолютные новички, не программисты</option>
-                <option>Новички с базовым опытом ChatGPT</option>
-                <option>Начинающие разработчики</option>
-                <option>Внутренняя команда проекта</option>
+                <option>Полные новички</option>
+                <option>Новички с базовым опытом</option>
+                <option>Продолжающие ученики</option>
+                <option>Практикующие специалисты</option>
+                <option>Внутренняя команда</option>
+                <option>Преподаватели или наставники</option>
+                <option>Смешанная аудитория</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
             <label class="field">
-              <span>Стартовый уровень ученика</span>
+              <span>Стартовый уровень</span>
               <select id="run-learner-starting-level">
-                <option selected>С нуля, без Git, терминала и сервера</option>
-                <option>Умеет пользоваться ChatGPT, но не знает Git и сервер</option>
-                <option>Знает GitHub на базовом уровне</option>
-                <option>Знает терминал и Git на базовом уровне</option>
+                <option>С нуля</option>
+                <option>Знает отдельные базовые понятия</option>
+                <option>Уже пробовал на практике</option>
+                <option>Умеет выполнять простые задания</option>
+                <option>Нужна систематизация знаний</option>
+                <option>Нужно перейти от теории к практике</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
             <label class="field">
-              <span>Цель курса</span>
-              <select id="run-course-goal-choice">
-                <option selected>Научиться управлять AI-разработкой через ChatGPT, Codex, сервер и GitHub</option>
-                <option>Научиться превращать исходные материалы в структуру курса</option>
-                <option>Научиться запускать по одному controlled task и проверять результат</option>
-                <option>Научиться работать с agent/tool workflow на учебном проекте</option>
+              <span>Главный учебный результат</span>
+              <select id="run-primary-learning-result">
+                <option>Понимание темы</option>
+                <option>Практический навык</option>
+                <option>Готовый учебный проект</option>
+                <option>Пошаговый рабочий процесс</option>
+                <option>Подготовка к проверке знаний</option>
+                <option>Умение разбирать типовые ситуации</option>
+                <option>Умение избежать типовых ошибок</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
             <label class="field">
-              <span>Что должно получиться в конце</span>
-              <select id="run-expected-practical-result">
-                <option selected>GitHub-backed учебный проект с документацией и первым проверенным результатом</option>
-                <option>Разбор исходников и карта курса</option>
-                <option>Один рабочий агентский pipeline от источников до урока</option>
-                <option>Read-only preview и проверяемый Codex report</option>
+              <span>Что должно быть на выходе</span>
+              <select id="run-final-output-type">
+                <option>Карта темы</option>
+                <option>Пошаговая инструкция</option>
+                <option>Практический результат</option>
+                <option>Учебный проект</option>
+                <option>Набор упражнений</option>
+                <option>Чек-лист действий</option>
+                <option>Подготовка к тесту</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
             <label class="field">
               <span>Размер курса</span>
               <select id="run-preferred-course-size">
-                <option selected>4-5 уроков</option>
-                <option>6-8 уроков</option>
-                <option>9-12 уроков</option>
+                <option>3–4 урока</option>
+                <option>5–7 уроков</option>
+                <option>8–10 уроков</option>
+                <option>11–15 уроков</option>
+                <option selected>Определить по исходным материалам</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Глубина курса</span>
+              <select id="run-course-depth">
+                <option>Только самое необходимое</option>
+                <option>Базовый уровень</option>
+                <option>Базовый уровень + важные нюансы</option>
+                <option>Практический уровень</option>
+                <option>Практический уровень + типовые ошибки</option>
+                <option>Расширенный вводный уровень</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
             <label class="field">
               <span>Стиль объяснения</span>
               <select id="run-explanation-style">
-                <option selected>Простой русский, без перегруза</option>
-                <option>Спокойный наставник</option>
+                <option>Очень просто и пошагово</option>
+                <option>Спокойно и подробно</option>
                 <option>Коротко и по делу</option>
-                <option>Подробно для новичка</option>
+                <option>Практически, с минимумом теории</option>
+                <option>Сначала простыми словами, потом термины</option>
+                <option>Для самостоятельного изучения</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
             <label class="field">
-              <span>Границы курса</span>
-              <select id="run-scope-strictness">
-                <option selected>Только MVP, без продакшн-архитектуры</option>
-                <option>MVP плюс минимальные пояснения архитектуры</option>
-                <option>Учебный проект с осторожными техническими деталями</option>
+              <span>Формат практики</span>
+              <select id="run-practice-format">
+                <option>Без практики, только объяснение</option>
+                <option>Маленькие задания после каждого урока</option>
+                <option>Один общий проект по шагам</option>
+                <option>Разбор примеров</option>
+                <option>Сценарии и выбор правильного действия</option>
+                <option>Практика только в конце курса</option>
+                <option selected>Определить по исходным материалам</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Проверка знаний</span>
+              <select id="run-assessment-format">
+                <option>Без проверки знаний</option>
+                <option>Короткие вопросы после уроков</option>
+                <option>Практические задания</option>
+                <option>Итоговая проверка</option>
+                <option>Самопроверка по чек-листу</option>
+                <option>Разбор ошибок</option>
+                <option selected>Определить по исходным материалам</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Обратная связь при ошибке</span>
+              <select id="run-feedback-mode">
+                <option>Показывать правильный ответ</option>
+                <option>Объяснять, почему ответ неверный</option>
+                <option>Давать подсказку и повторную попытку</option>
+                <option>Давать шаг восстановления после ошибки</option>
+                <option>Показывать типовую ошибку и исправление</option>
+                <option>Без отдельной обратной связи</option>
+                <option selected>Определить по исходным материалам</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Строгость по источникам</span>
+              <select id="run-source-strictness">
+                <option>Только факты из исходников</option>
+                <option>Факты из исходников + явно помеченные учебные выводы</option>
+                <option>Можно добавлять общие учебные пояснения, но не новые факты</option>
+                <option>Нужны дополнительные источники перед созданием уроков</option>
+                <option selected>Определить после разбора исходников</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Чувствительность темы</span>
+              <select id="run-domain-sensitivity">
+                <option>Обычная учебная тема</option>
+                <option>Школьная или экзаменационная тема</option>
+                <option>Медицина или здоровье</option>
+                <option>Право или документы</option>
+                <option>Финансы</option>
+                <option>Безопасность, техника, инструменты</option>
+                <option>Детская или возрастная аудитория</option>
+                <option>Другая тема, где нужны специальные источники</option>
+                <option selected>Определить по исходным материалам</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Режим курса</span>
+              <select id="run-course-mode">
+                <option>Учить с нуля</option>
+                <option>Объяснить сложную тему проще</option>
+                <option>Превратить материалы в практический курс</option>
+                <option>Сделать курс для внутреннего обучения</option>
+                <option>Сделать курс для самостоятельного изучения</option>
+                <option>Сделать курс для проверки и закрепления</option>
+                <option selected>Определить по исходным материалам</option>
               </select>
             </label>
           </div>
-          <label class="field">
-            <span>Комментарий к цели</span>
-            <input id="run-goal" type="text" placeholder="Например: source digest для документов проекта">
-          </label>
-          <label class="field">
-            <span>Комментарий к аудитории</span>
-            <input id="run-target-audience" type="text" placeholder="Например: внутренний техрайтер">
-          </label>
           <label class="field">
             <span>Исходные markdown-файлы и zip-архивы</span>
             <input id="run-source-files" type="file" multiple accept=".md,.zip,text/markdown,application/zip,application/x-zip-compressed">

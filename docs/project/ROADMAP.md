@@ -79,6 +79,8 @@ Review the first `source_digest.md` and the accepted methodology references toge
 
 Redesign the universal course setup model from the accepted methodology references before any new UI implementation.
 
+The current `/runs` setup is now dropdown-only and topic-agnostic.
+
 Decide whether it is acceptable for Course Architect or whether Source Analyst contracts need stricter source traceability.
 
 ## Stage 7 — Course Architect controlled execution

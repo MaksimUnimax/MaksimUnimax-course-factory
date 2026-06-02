@@ -29,6 +29,11 @@ Fixed:
 The `/runs` source input now accepts individual `.md` files, `.zip` archives containing markdown files, and mixed `.md` + `.zip` selections.
 Extracted markdown files are stored under `runs/<run_id>/input/source_pack/` and listed in the run request.
 
+The current `/runs` course setup model is dropdown-only and topic-agnostic.
+Uploaded source documents define the subject and facts.
+Structured dropdowns define the course type, audience, starting level, learning result, output type, size, depth, explanation style, practice, assessment, feedback, source strictness, sensitivity, and course mode.
+Free-text course setup fields are not part of this slice.
+
 The canonical pipeline handoff rule is documented in:
 
 `docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`

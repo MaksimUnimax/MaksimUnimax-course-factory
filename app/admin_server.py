@@ -47,83 +47,190 @@ RUN_SUPPORTED_UPSTREAM_HANDOFFS = {("source-analyst", "course-architect"): "sour
 COURSE_SETUP_FILENAME = "course_setup.json"
 COURSE_BRIEF_FILENAME = "course_brief.md"
 COURSE_SETUP_SOURCE = "ui_dropdowns"
+COURSE_SETUP_SUBJECT_SOURCE = "uploaded_source_documents"
+COURSE_SETUP_METHOD_SOURCE = "accepted_course_factory_methodology_references"
 COURSE_SETUP_FIELD_DEFS: list[tuple[str, str, list[str]]] = [
     (
         "course_type",
         "Тип курса",
         [
-            "Практический вводный курс",
-            "Мини-курс",
-            "Пошаговый туториал",
-            "Внутренний обучающий курс",
+            "Вводный курс",
+            "Практический курс",
+            "Пошаговый учебный проект",
+            "Курс с разбором примеров",
+            "Курс для повторения и закрепления",
+            "Курс для подготовки к проверке знаний",
+            "Определить по исходным материалам",
         ],
     ),
     (
         "target_audience_type",
         "Для кого курс",
         [
-            "Абсолютные новички, не программисты",
-            "Новички с базовым опытом ChatGPT",
-            "Начинающие разработчики",
-            "Внутренняя команда проекта",
+            "Полные новички",
+            "Новички с базовым опытом",
+            "Продолжающие ученики",
+            "Практикующие специалисты",
+            "Внутренняя команда",
+            "Преподаватели или наставники",
+            "Смешанная аудитория",
+            "Определить по исходным материалам",
         ],
     ),
     (
         "learner_starting_level",
-        "Стартовый уровень ученика",
+        "Стартовый уровень",
         [
-            "С нуля, без Git, терминала и сервера",
-            "Умеет пользоваться ChatGPT, но не знает Git и сервер",
-            "Знает GitHub на базовом уровне",
-            "Знает терминал и Git на базовом уровне",
+            "С нуля",
+            "Знает отдельные базовые понятия",
+            "Уже пробовал на практике",
+            "Умеет выполнять простые задания",
+            "Нужна систематизация знаний",
+            "Нужно перейти от теории к практике",
+            "Определить по исходным материалам",
         ],
     ),
     (
-        "course_goal",
-        "Цель курса",
+        "primary_learning_result",
+        "Главный учебный результат",
         [
-            "Научиться управлять AI-разработкой через ChatGPT, Codex, сервер и GitHub",
-            "Научиться превращать исходные материалы в структуру курса",
-            "Научиться запускать по одному controlled task и проверять результат",
-            "Научиться работать с agent/tool workflow на учебном проекте",
+            "Понимание темы",
+            "Практический навык",
+            "Готовый учебный проект",
+            "Пошаговый рабочий процесс",
+            "Подготовка к проверке знаний",
+            "Умение разбирать типовые ситуации",
+            "Умение избежать типовых ошибок",
+            "Определить по исходным материалам",
         ],
     ),
     (
-        "expected_practical_result",
-        "Что должно получиться в конце",
+        "final_output_type",
+        "Что должно быть на выходе",
         [
-            "GitHub-backed учебный проект с документацией и первым проверенным результатом",
-            "Разбор исходников и карта курса",
-            "Один рабочий агентский pipeline от источников до урока",
-            "Read-only preview и проверяемый Codex report",
+            "Карта темы",
+            "Пошаговая инструкция",
+            "Практический результат",
+            "Учебный проект",
+            "Набор упражнений",
+            "Чек-лист действий",
+            "Подготовка к тесту",
+            "Определить по исходным материалам",
         ],
     ),
     (
         "preferred_course_size",
         "Размер курса",
         [
-            "4-5 уроков",
-            "6-8 уроков",
-            "9-12 уроков",
+            "3–4 урока",
+            "5–7 уроков",
+            "8–10 уроков",
+            "11–15 уроков",
+            "Определить по исходным материалам",
+        ],
+    ),
+    (
+        "course_depth",
+        "Глубина курса",
+        [
+            "Только самое необходимое",
+            "Базовый уровень",
+            "Базовый уровень + важные нюансы",
+            "Практический уровень",
+            "Практический уровень + типовые ошибки",
+            "Расширенный вводный уровень",
+            "Определить по исходным материалам",
         ],
     ),
     (
         "explanation_style",
         "Стиль объяснения",
         [
-            "Простой русский, без перегруза",
-            "Спокойный наставник",
+            "Очень просто и пошагово",
+            "Спокойно и подробно",
             "Коротко и по делу",
-            "Подробно для новичка",
+            "Практически, с минимумом теории",
+            "Сначала простыми словами, потом термины",
+            "Для самостоятельного изучения",
+            "Определить по исходным материалам",
         ],
     ),
     (
-        "scope_strictness",
-        "Границы курса",
+        "practice_format",
+        "Формат практики",
         [
-            "Только MVP, без продакшн-архитектуры",
-            "MVP плюс минимальные пояснения архитектуры",
-            "Учебный проект с осторожными техническими деталями",
+            "Без практики, только объяснение",
+            "Маленькие задания после каждого урока",
+            "Один общий проект по шагам",
+            "Разбор примеров",
+            "Сценарии и выбор правильного действия",
+            "Практика только в конце курса",
+            "Определить по исходным материалам",
+        ],
+    ),
+    (
+        "assessment_format",
+        "Проверка знаний",
+        [
+            "Без проверки знаний",
+            "Короткие вопросы после уроков",
+            "Практические задания",
+            "Итоговая проверка",
+            "Самопроверка по чек-листу",
+            "Разбор ошибок",
+            "Определить по исходным материалам",
+        ],
+    ),
+    (
+        "feedback_mode",
+        "Обратная связь при ошибке",
+        [
+            "Показывать правильный ответ",
+            "Объяснять, почему ответ неверный",
+            "Давать подсказку и повторную попытку",
+            "Давать шаг восстановления после ошибки",
+            "Показывать типовую ошибку и исправление",
+            "Без отдельной обратной связи",
+            "Определить по исходным материалам",
+        ],
+    ),
+    (
+        "source_strictness",
+        "Строгость по источникам",
+        [
+            "Только факты из исходников",
+            "Факты из исходников + явно помеченные учебные выводы",
+            "Можно добавлять общие учебные пояснения, но не новые факты",
+            "Нужны дополнительные источники перед созданием уроков",
+            "Определить после разбора исходников",
+        ],
+    ),
+    (
+        "domain_sensitivity",
+        "Чувствительность темы",
+        [
+            "Обычная учебная тема",
+            "Школьная или экзаменационная тема",
+            "Медицина или здоровье",
+            "Право или документы",
+            "Финансы",
+            "Безопасность, техника, инструменты",
+            "Детская или возрастная аудитория",
+            "Другая тема, где нужны специальные источники",
+            "Определить по исходным материалам",
+        ],
+    ),
+    (
+        "course_mode",
+        "Режим курса",
+        [
+            "Учить с нуля",
+            "Объяснить сложную тему проще",
+            "Превратить материалы в практический курс",
+            "Сделать курс для внутреннего обучения",
+            "Сделать курс для самостоятельного изучения",
+            "Сделать курс для проверки и закрепления",
+            "Определить по исходным материалам",
         ],
     ),
 ]
@@ -666,108 +773,69 @@ def normalize_run_input_file_path(filename: str) -> str:
     return str(Path("source_pack") / normalized)
 
 
-def course_setup_from_form(form: cgi.FieldStorage) -> dict[str, str] | None:
+def course_setup_from_form(form: cgi.FieldStorage) -> dict[str, str]:
     course_setup: dict[str, str] = {}
+    missing: list[str] = []
     for key, _, options in COURSE_SETUP_FIELD_DEFS:
         value = safe_text(form.getfirst(key, "")).strip()
-        if value:
-            if value not in options:
-                raise ApiError("INVALID_COURSE_SETUP_VALUE", f"Недопустимое значение поля {key}.")
-            course_setup[key] = value
-        else:
-            course_setup[key] = ""
-    if not any(course_setup.values()):
-        return None
-    missing = [label for key, label, _ in COURSE_SETUP_FIELD_DEFS if not course_setup.get(key)]
+        if not value:
+            missing.append(key)
+            continue
+        if value not in options:
+            raise ApiError("INVALID_COURSE_SETUP_VALUE", f"Недопустимое значение поля {key}.")
+        course_setup[key] = value
     if missing:
-        raise ApiError("COURSE_SETUP_REQUIRED", f"Заполните настройки курса: {', '.join(missing)}.")
-    course_setup["goal_note"] = safe_text(form.getfirst("goal", "")).strip()
-    course_setup["audience_note"] = safe_text(form.getfirst("target_audience", "")).strip()
-    course_setup["course_title"] = f"{course_setup['course_type']} — {course_setup['course_goal']}"
-    course_setup["source"] = COURSE_SETUP_SOURCE
+        missing_labels = [label for key, label, _ in COURSE_SETUP_FIELD_DEFS if key in missing]
+        raise ApiError("COURSE_SETUP_REQUIRED", f"Заполните настройки курса: {', '.join(missing_labels)}.")
     return course_setup
 
 
 def render_course_setup_course_brief(run_id: str, course_setup: dict[str, str], source_files: list[str]) -> str:
     source_list = source_files or ["(source pack will be attached through the run chain)"]
-    goal_note = course_setup.get("goal_note", "").strip() or "—"
-    audience_note = course_setup.get("audience_note", "").strip() or "—"
     lines = [
         "# Задание на курс",
         "",
-        "Этот файл создан интерфейсом из настроек курса. Это задание на курс, а не результат работы агента.",
+        "Этот файл создан интерфейсом из выбранных настроек.",
+        "Это задание на курс, а не результат работы агента.",
+        "Тема и факты курса берутся из загруженных исходных документов.",
+        "Методика построения курса берётся из принятых методических референсов Course Factory.",
         "",
         "## Run ID",
         "",
         run_id,
         "",
-        "## Название курса",
+        "## Настройки курса",
         "",
-        course_setup.get("course_title", course_setup.get("course_goal", "Задание на курс")),
-        "",
-        "## Тип курса",
-        "",
-        course_setup.get("course_type", "—"),
-        "",
-        "## Для кого курс",
-        "",
-        course_setup.get("target_audience_type", "—"),
-        "",
-        "## Стартовый уровень ученика",
-        "",
-        course_setup.get("learner_starting_level", "—"),
-        "",
-        "## Цель курса",
-        "",
-        course_setup.get("course_goal", "—"),
-        "",
-        "## Что должно получиться в конце",
-        "",
-        course_setup.get("expected_practical_result", "—"),
-        "",
-        "## Размер курса",
-        "",
-        course_setup.get("preferred_course_size", "—"),
-        "",
-        "## Стиль объяснения",
-        "",
-        course_setup.get("explanation_style", "—"),
-        "",
-        "## Границы курса",
-        "",
-        course_setup.get("scope_strictness", "—"),
-        "",
-        "## Комментарий к цели",
-        "",
-        goal_note,
-        "",
-        "## Комментарий к аудитории",
-        "",
-        audience_note,
-        "",
-        "## Source basis",
-        "",
-        "- Загруженные source documents в `input/source_pack/`.",
     ]
+    for key, label, _ in COURSE_SETUP_FIELD_DEFS:
+        lines.extend([
+            f"### {label}",
+            "",
+            course_setup.get(key, "—"),
+            "",
+        ])
+    lines.extend([
+        "## Основа по источникам",
+        "",
+        "- Загруженные исходные документы в `input/source_pack/`.",
+    ])
     lines.extend([f"- input/source_pack/{source_file}" for source_file in source_list])
-    lines.extend(
-        [
-            "- Этот brief создан до выполнения Source Analyst и будет передан дальше как workflow artifact.",
-            "",
-            "## Methodology basis",
-            "",
-            "- `docs/course_factory/METHOD.md`",
-            "- `docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`",
-            "- `docs/course_factory/ARTIFACT_CONTRACTS.md`",
-            "",
-            "## Human approval points",
-            "",
-            "- Пользователь выбирает структурированные настройки курса в интерфейсе.",
-            "- Пользователь подтверждает source pack перед запуском Source Analyst.",
-            "- Следующий агент проверяет наличие `source_digest.md` и этого `Задание на курс`.",
-            "",
-        ]
-    )
+    lines.extend([
+        "- Этот файл создаётся на этапе начальной загрузки исходников и передаётся дальше как рабочий артефакт процесса.",
+        "",
+        "## Методическая основа",
+        "",
+        "- Принятые методические референсы Course Factory",
+        "- `docs/course_factory/METHOD_SOURCES.md`",
+        "- `docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`",
+        "",
+        "## Human approval points",
+        "",
+        "- Пользователь выбирает структурированные настройки курса в интерфейсе.",
+        "- Пользователь подтверждает source pack перед запуском Source Analyst.",
+        "- Следующий агент проверяет наличие `source_digest.md` и этого `Задание на курс`.",
+        "",
+    ])
     return "\n".join(lines)
 
 
@@ -779,6 +847,8 @@ def write_course_setup_artifacts(run_dir: Path, run_id: str, agent: str, source_
         "agent": agent,
         "created_at_utc": utc_stamp(),
         "course_setup_source": COURSE_SETUP_SOURCE,
+        "subject_source": COURSE_SETUP_SUBJECT_SOURCE,
+        "methodology_source": COURSE_SETUP_METHOD_SOURCE,
         "course_brief_status": "available",
         "course_brief_path": str(Path("output") / COURSE_BRIEF_FILENAME),
         "course_setup_path": COURSE_SETUP_FILENAME,
@@ -1301,6 +1371,8 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
             setup_payload = write_course_setup_artifacts(run_dir, run_id, agent, source_files, course_setup)
             status_extra = {
                 "course_setup_source": COURSE_SETUP_SOURCE,
+                "subject_source": COURSE_SETUP_SUBJECT_SOURCE,
+                "methodology_source": COURSE_SETUP_METHOD_SOURCE,
                 "course_setup_path": COURSE_SETUP_FILENAME,
                 "course_brief_status": "available",
                 "course_brief_path": str(Path("output") / COURSE_BRIEF_FILENAME),
@@ -1327,6 +1399,14 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
                 "## Course setup source",
                 "",
                 str(setup_payload["course_setup_source"]),
+                "",
+                "## Subject source",
+                "",
+                str(setup_payload["subject_source"]),
+                "",
+                "## Methodology source",
+                "",
+                str(setup_payload["methodology_source"]),
                 "",
             ]
         else:

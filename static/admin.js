@@ -2,7 +2,7 @@
   const state = window.__CF_STATE__ || {};
   const page = state.page || document.body.dataset.page || "home";
   const agents = state.agents || [];
-  const RUNS_DRAFT_KEY = "course_factory_runs_form_draft_v1";
+  const RUNS_DRAFT_KEY = "course_factory_runs_form_draft_v2";
   const warningBox = document.getElementById("page-warning");
   const gitBox = document.getElementById("git-status");
 
@@ -29,13 +29,17 @@
     courseType: document.getElementById("run-course-type"),
     targetAudienceType: document.getElementById("run-target-audience-type"),
     learnerStartingLevel: document.getElementById("run-learner-starting-level"),
-    courseGoal: document.getElementById("run-course-goal-choice"),
-    expectedPracticalResult: document.getElementById("run-expected-practical-result"),
+    primaryLearningResult: document.getElementById("run-primary-learning-result"),
+    finalOutputType: document.getElementById("run-final-output-type"),
     preferredCourseSize: document.getElementById("run-preferred-course-size"),
+    courseDepth: document.getElementById("run-course-depth"),
     explanationStyle: document.getElementById("run-explanation-style"),
-    scopeStrictness: document.getElementById("run-scope-strictness"),
-    goal: document.getElementById("run-goal"),
-    targetAudience: document.getElementById("run-target-audience"),
+    practiceFormat: document.getElementById("run-practice-format"),
+    assessmentFormat: document.getElementById("run-assessment-format"),
+    feedbackMode: document.getElementById("run-feedback-mode"),
+    sourceStrictness: document.getElementById("run-source-strictness"),
+    domainSensitivity: document.getElementById("run-domain-sensitivity"),
+    courseMode: document.getElementById("run-course-mode"),
     sourceFiles: document.getElementById("run-source-files"),
     sourceHint: document.getElementById("run-source-hint"),
     createButton: document.getElementById("create-run-button"),
@@ -61,6 +65,23 @@
     fileLabel: document.getElementById("run-file-label"),
     fileView: document.getElementById("run-file-view"),
   };
+
+  const courseSetupFieldKeys = [
+    "courseType",
+    "targetAudienceType",
+    "learnerStartingLevel",
+    "primaryLearningResult",
+    "finalOutputType",
+    "preferredCourseSize",
+    "courseDepth",
+    "explanationStyle",
+    "practiceFormat",
+    "assessmentFormat",
+    "feedbackMode",
+    "sourceStrictness",
+    "domainSensitivity",
+    "courseMode",
+  ];
 
   let selectedAgent = null;
   let selectedFile = null;
@@ -134,20 +155,13 @@
   }
 
   function saveRunDraft() {
-    if (!runs.agentSelect || !runs.goal || !runs.targetAudience) return;
+    if (!runs.agentSelect) return;
     const payload = {
       agent: runs.agentSelect.value || "",
-      courseType: runs.courseType?.value || "",
-      targetAudienceType: runs.targetAudienceType?.value || "",
-      learnerStartingLevel: runs.learnerStartingLevel?.value || "",
-      courseGoal: runs.courseGoal?.value || "",
-      expectedPracticalResult: runs.expectedPracticalResult?.value || "",
-      preferredCourseSize: runs.preferredCourseSize?.value || "",
-      explanationStyle: runs.explanationStyle?.value || "",
-      scopeStrictness: runs.scopeStrictness?.value || "",
-      goal: runs.goal.value || "",
-      targetAudience: runs.targetAudience.value || "",
     };
+    courseSetupFieldKeys.forEach((fieldKey) => {
+      payload[fieldKey] = runs[fieldKey]?.value || "";
+    });
     try {
       localStorage.setItem(RUNS_DRAFT_KEY, JSON.stringify(payload));
     } catch {
@@ -156,18 +170,11 @@
   }
 
   function restoreRunDraft() {
-    if (runDraftRestoreApplied || !runs.agentSelect || !runs.goal || !runs.targetAudience) return;
+    if (runDraftRestoreApplied || !runs.agentSelect) return;
     const draft = getRunDraft();
-    if (draft.courseType && runs.courseType) runs.courseType.value = draft.courseType;
-    if (draft.targetAudienceType && runs.targetAudienceType) runs.targetAudienceType.value = draft.targetAudienceType;
-    if (draft.learnerStartingLevel && runs.learnerStartingLevel) runs.learnerStartingLevel.value = draft.learnerStartingLevel;
-    if (draft.courseGoal && runs.courseGoal) runs.courseGoal.value = draft.courseGoal;
-    if (draft.expectedPracticalResult && runs.expectedPracticalResult) runs.expectedPracticalResult.value = draft.expectedPracticalResult;
-    if (draft.preferredCourseSize && runs.preferredCourseSize) runs.preferredCourseSize.value = draft.preferredCourseSize;
-    if (draft.explanationStyle && runs.explanationStyle) runs.explanationStyle.value = draft.explanationStyle;
-    if (draft.scopeStrictness && runs.scopeStrictness) runs.scopeStrictness.value = draft.scopeStrictness;
-    if (draft.goal) runs.goal.value = draft.goal;
-    if (draft.targetAudience) runs.targetAudience.value = draft.targetAudience;
+    courseSetupFieldKeys.forEach((fieldKey) => {
+      if (draft[fieldKey] && runs[fieldKey]) runs[fieldKey].value = draft[fieldKey];
+    });
     if (draft.agent && Array.from(runs.agentSelect.options).some((option) => option.value === draft.agent)) {
       runs.agentSelect.value = draft.agent;
     }
@@ -627,8 +634,6 @@
   async function createRun() {
     if (!runs.agentSelect) return;
     const agent = runs.agentSelect.value.trim();
-    const goal = runs.goal.value.trim();
-    const targetAudience = runs.targetAudience.value.trim();
     const files = runs.sourceFiles.files;
     if (!agent) {
       setMessage(runs.createMessage, "Сначала выберите агента.", "error");
@@ -641,16 +646,9 @@
 
     const form = new FormData();
     form.append("agent", agent);
-    form.append("goal", goal);
-    form.append("target_audience", targetAudience);
-    if (runs.courseType) form.append("course_type", runs.courseType.value || "");
-    if (runs.targetAudienceType) form.append("target_audience_type", runs.targetAudienceType.value || "");
-    if (runs.learnerStartingLevel) form.append("learner_starting_level", runs.learnerStartingLevel.value || "");
-    if (runs.courseGoal) form.append("course_goal", runs.courseGoal.value || "");
-    if (runs.expectedPracticalResult) form.append("expected_practical_result", runs.expectedPracticalResult.value || "");
-    if (runs.preferredCourseSize) form.append("preferred_course_size", runs.preferredCourseSize.value || "");
-    if (runs.explanationStyle) form.append("explanation_style", runs.explanationStyle.value || "");
-    if (runs.scopeStrictness) form.append("scope_strictness", runs.scopeStrictness.value || "");
+    courseSetupFieldKeys.forEach((fieldKey) => {
+      if (runs[fieldKey]) form.append(fieldKey.replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`), runs[fieldKey].value || "");
+    });
     Array.from(files).forEach((file) => {
       form.append("files[]", file, file.name);
     });
@@ -725,30 +723,14 @@
     if (runs.agentSelect) {
       runs.agentSelect.addEventListener("change", syncRunDraftFromUI);
     }
-    if (runs.goal) {
-      runs.goal.addEventListener("input", syncRunDraftFromUI);
-    }
-    if (runs.targetAudience) {
-      runs.targetAudience.addEventListener("input", syncRunDraftFromUI);
-    }
-    [
-      runs.courseType,
-      runs.targetAudienceType,
-      runs.learnerStartingLevel,
-      runs.courseGoal,
-      runs.expectedPracticalResult,
-      runs.preferredCourseSize,
-      runs.explanationStyle,
-      runs.scopeStrictness,
-    ].forEach((field) => {
+    courseSetupFieldKeys.forEach((fieldKey) => {
+      const field = runs[fieldKey];
       if (field) field.addEventListener("change", syncRunDraftFromUI);
     });
     if (runs.sourceFiles) {
       runs.sourceFiles.addEventListener("change", () => {
         updateRunSourceHint();
-        if (!runs.goal.value.trim()) {
-          setMessage(runs.createMessage, "Добавлены файлы для новой заявки.");
-        }
+        setMessage(runs.createMessage, "Добавлены файлы для новой заявки.");
       });
     }
     refreshRuns().catch(() => {});

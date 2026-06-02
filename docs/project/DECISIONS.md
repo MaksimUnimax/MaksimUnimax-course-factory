@@ -64,6 +64,12 @@ The accepted methodology references are the working methodology base for Course 
 
 Those elements must be derived from the accepted methodology references and updated through the documented governance process, not from the current test topic.
 
+The initial `/runs` course setup is a dropdown-only universal model:
+
+- uploaded source documents define the subject and facts;
+- dropdowns define course design choices;
+- free-text course setup fields are not part of this slice.
+
 Existing old projects are no-touch in Course Factory workflow.
 
 Hand-edited UI changes should be followed by a small commit/push Codex-run to avoid dirty working tree mixing.

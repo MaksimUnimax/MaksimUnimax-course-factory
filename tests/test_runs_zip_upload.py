@@ -25,13 +25,28 @@ class FakeUpload:
 class FakeForm:
     def __init__(self, items: list[FakeUpload]) -> None:
         self.list = items
+        self.course_setup = {
+            "course_type": "Пошаговый учебный проект",
+            "target_audience_type": "Смешанная аудитория",
+            "learner_starting_level": "Нужна систематизация знаний",
+            "primary_learning_result": "Практический навык",
+            "final_output_type": "Учебный проект",
+            "preferred_course_size": "5–7 уроков",
+            "course_depth": "Практический уровень + типовые ошибки",
+            "explanation_style": "Сначала простыми словами, потом термины",
+            "practice_format": "Один общий проект по шагам",
+            "assessment_format": "Практические задания",
+            "feedback_mode": "Показывать типовую ошибку и исправление",
+            "source_strictness": "Факты из исходников + явно помеченные учебные выводы",
+            "domain_sensitivity": "Обычная учебная тема",
+            "course_mode": "Превратить материалы в практический курс",
+        }
 
     def getfirst(self, key: str, default: str = "") -> str:
         values = {
             "agent": "source-analyst",
-            "goal": "Build a source digest",
-            "target_audience": "internal writer",
         }
+        values.update(self.course_setup)
         return values.get(key, default)
 
 
