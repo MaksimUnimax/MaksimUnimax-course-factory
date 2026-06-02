@@ -1,0 +1,38 @@
+{
+  "run_id": "20260602_124454_source-analyst",
+  "agent": "source-analyst",
+  "status": "completed_success",
+  "created_at_utc": "2026-06-02T12:44:54Z",
+  "completed_at_utc": "2026-06-02T12:48:41Z",
+  "goal": "",
+  "target_audience": "",
+  "source_files": [
+    "input/source_pack/openscript_agent_lab_student_kit_source.md"
+  ],
+  "output_files": [
+    "course_brief.md",
+    "source_digest.md"
+  ],
+  "course_setup_source": "ui_dropdowns",
+  "subject_source": "uploaded_source_documents",
+  "methodology_source": "accepted_course_factory_methodology_references",
+  "course_setup_path": "course_setup.json",
+  "course_brief_status": "available",
+  "course_brief_path": "output/course_brief.md",
+  "course_setup": {
+    "course_type": "Определить по исходным материалам",
+    "target_audience_type": "Полные новички",
+    "learner_starting_level": "С нуля",
+    "primary_learning_result": "Пошаговый рабочий процесс",
+    "final_output_type": "Учебный проект",
+    "preferred_course_size": "5–7 уроков",
+    "course_depth": "Базовый уровень + важные нюансы",
+    "explanation_style": "Очень просто и пошагово",
+    "practice_format": "Маленькие задания после каждого урока",
+    "assessment_format": "Короткие вопросы после уроков",
+    "feedback_mode": "Показывать правильный ответ",
+    "source_strictness": "Факты из исходников + явно помеченные учебные выводы",
+    "domain_sensitivity": "Обычная учебная тема",
+    "course_mode": "Учить с нуля"
+  }
+}
