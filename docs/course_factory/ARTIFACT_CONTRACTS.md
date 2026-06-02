@@ -6,6 +6,10 @@ Each Course Factory stage must produce a concrete artifact.
 
 Artifacts must be git-trackable text files unless a later approved design adds another format.
 
+The required artifact shapes are derived from the accepted methodology references and the pipeline governance rules.
+
+If a result looks poor, the fix is not to invent arbitrary fields from the current test topic. First determine whether the problem is the source materials, the methodology references, the domain references, the skill contract, the artifact contract, the quality gate, or the implementation.
+
 ## 1. Source digest
 
 Required sections:

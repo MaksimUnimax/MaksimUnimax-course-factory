@@ -14,6 +14,8 @@ Each agent must have:
 - STOP conditions;
 - quality checks.
 
+The accepted methodology references and the methodology-reference governance rule determine how those contracts are designed and updated.
+
 ## 1. Source Analyst
 
 Purpose:

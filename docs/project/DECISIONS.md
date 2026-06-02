@@ -53,6 +53,17 @@ Canonical pipeline architecture uses single-upload upstream artifact handoff:
 - downstream agents consume previous artifacts from the workflow chain;
 - manual ChatGPT-made re-upload archives are not canonical pipeline proof.
 
+The accepted methodology references are the working methodology base for Course Factory:
+
+- skill docs;
+- starting questions;
+- artifact contracts;
+- tests;
+- quality gates;
+- UI field sets.
+
+Those elements must be derived from the accepted methodology references and updated through the documented governance process, not from the current test topic.
+
 Existing old projects are no-touch in Course Factory workflow.
 
 Hand-edited UI changes should be followed by a small commit/push Codex-run to avoid dirty working tree mixing.
@@ -106,3 +117,7 @@ Decision:
 - the intake creates `course_setup.json` and `output/course_brief.md` as workflow artifacts;
 - `course_brief.md` is a human/workflow artifact, not an agent output;
 - downstream agents consume the saved course brief through upstream handoff instead of a fresh ChatGPT-made upload archive.
+
+The methodology-reference governance doc is part of the canonical documentation set:
+
+- `docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`

@@ -15,6 +15,18 @@ Review result must be one of:
 - FAIL_SAFETY_RISK
 - FAIL_NOT_A_COURSE
 
+The rubric is governed by the accepted methodology references and the methodology-reference governance rule.
+
+If a course result is poor, the reviewer should identify the failure class before any UI or prompt change:
+
+- missing source materials;
+- poor or incomplete methodology reference;
+- missing domain reference;
+- weak skill contract;
+- weak artifact contract;
+- weak quality criterion;
+- implementation error.
+
 ## Required checks
 
 ### 1. Source grounding

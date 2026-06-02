@@ -33,6 +33,10 @@ The canonical pipeline handoff rule is documented in:
 
 `docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`
 
+The methodology-reference governance rule is documented in:
+
+`docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`
+
 The manual `20260602_092930_course-architect` run and commit `a010cd1d01cc456f17fb260097e12244a5bff612` are useful manual/upload-based execution evidence, but they are not accepted as canonical pipeline proof.
 
 The `/runs` upstream artifact handoff now exists for the first slice:
@@ -83,6 +87,8 @@ The first Source Analyst output is useful for a first proof, but it is still hig
 Review the output:
 
 `runs/20260601_102242_source-analyst/output/source_digest.md`
+
+Then review the accepted methodology references and redesign the universal course setup model from them before any new UI implementation.
 
 Then decide one of:
 

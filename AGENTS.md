@@ -30,12 +30,15 @@ Pipeline handoff rules are defined in:
 
 - `docs/course_factory/METHOD.md`
 - `docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`
+- `docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`
 
 ## Course content rule
 
 Course and lesson content must be source-grounded.
 
 Agents must not invent facts that are not present in provided source materials unless explicitly marked as instructional inference.
+
+The accepted methodology references are the working design base for Course Factory. UI fields, agent contracts, quality gates, and start questions must be derived from the accepted methodology references and the artifact contracts, not from the current test topic.
 
 ## Local admin MVP
 

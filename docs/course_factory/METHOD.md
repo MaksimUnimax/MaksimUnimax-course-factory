@@ -12,6 +12,12 @@ Canonical upstream handoff rules are defined in:
 
 `docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`
 
+Methodology reference governance is defined in:
+
+`docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`
+
+The accepted methodology references determine how the stages are designed, what the agent contracts require, and how the UI and quality gates are shaped.
+
 ## Pipeline
 
 ### 1. Source intake

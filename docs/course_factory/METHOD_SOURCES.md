@@ -4,7 +4,11 @@
 
 Course Factory does not create courses from imagination.
 
-Course Factory starts from four accepted methodology sources. These sources are a baseline for the first test bench, not permanent dogma.
+Course Factory starts from four accepted methodology sources. These sources are the current working methodology base for the project.
+
+Any review, expansion, or replacement of this base must follow:
+
+- `docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`
 
 ## 1. The Carpentries
 
@@ -76,3 +80,9 @@ These sources are enough to start Course Factory for practical, technical, onboa
 They are not enough by themselves for every domain.
 
 If the requested course is school-standard, medical, legal, safety-critical, machine-operation, regulated, or age-specific, Course Factory must request additional domain-specific sources before generating final course content.
+
+Methodology sources define how the course is designed.
+
+Source documents define what the course is about.
+
+Do not invent interface fields, skill-doc contents, or quality rules from the current test topic when the real issue is that the methodology base needs review or extension.

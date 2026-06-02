@@ -75,7 +75,9 @@ Result:
 
 Status: current.
 
-Review the first `source_digest.md`.
+Review the first `source_digest.md` and the accepted methodology references together.
+
+Redesign the universal course setup model from the accepted methodology references before any new UI implementation.
 
 Decide whether it is acceptable for Course Architect or whether Source Analyst contracts need stricter source traceability.
 
