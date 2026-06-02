@@ -35,7 +35,13 @@ The canonical pipeline handoff rule is documented in:
 
 The manual `20260602_092930_course-architect` run and commit `a010cd1d01cc456f17fb260097e12244a5bff612` are useful manual/upload-based execution evidence, but they are not accepted as canonical pipeline proof.
 
-The next technical step is to implement `/runs` upstream artifact handoff so downstream agents can consume previous artifacts directly.
+The `/runs` upstream artifact handoff now exists for the first slice:
+
+- completed Source Analyst run -> pending Course Architect run;
+- upstream source digest is copied as a controlled artifact;
+- downstream execution still happens separately.
+
+The next technical step is to extend the same upstream handoff pattern to later agents and project-level course artifacts.
 
 The first controlled Source Analyst run has been completed.
 

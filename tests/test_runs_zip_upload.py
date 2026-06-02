@@ -97,7 +97,7 @@ class RunZipUploadTests(unittest.TestCase):
         self.assertEqual(detail["input_files"], ["docs/intro.md", "nested/lesson.md"])
 
         path, relative_name = admin.read_run_file(run_id, "input", "nested/lesson.md")
-        self.assertEqual(relative_name, "nested/lesson.md")
+        self.assertEqual(relative_name, "source_pack/nested/lesson.md")
         self.assertEqual(path.read_text(encoding="utf-8"), "# lesson\n")
 
     def test_mixed_md_and_zip_upload(self) -> None:

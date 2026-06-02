@@ -39,9 +39,11 @@ RUN_REQUEST_FILENAME = "RUN_REQUEST.md"
 RUN_STATUS_FILENAME = "status.json"
 RUN_PENDING_STATUS = "pending_codex_execution"
 RUN_INPUT_DIR = Path("input") / "source_pack"
+RUN_UPSTREAM_INPUT_DIR = Path("input") / "upstream_artifacts"
 RUN_OUTPUT_DIR = Path("output")
 RUN_LOG_DIR = Path("logs")
 RUN_ZIP_EXTS = {".zip"}
+RUN_SUPPORTED_UPSTREAM_HANDOFFS = {("source-analyst", "course-architect"): "source_digest.md"}
 
 AGENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
@@ -525,6 +527,7 @@ def resolve_run_dir(run_id: str, *, must_exist: bool = False) -> Path:
 
 def ensure_run_structure(run_dir: Path) -> None:
     (run_dir / RUN_INPUT_DIR).mkdir(parents=True, exist_ok=True)
+    (run_dir / RUN_UPSTREAM_INPUT_DIR).mkdir(parents=True, exist_ok=True)
     (run_dir / RUN_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     (run_dir / RUN_LOG_DIR).mkdir(parents=True, exist_ok=True)
     (run_dir / RUN_OUTPUT_DIR / ".gitkeep").touch(exist_ok=True)
@@ -563,6 +566,21 @@ def list_marked_files(directory: Path, *, allowed_exts: set[str] | None = None) 
             continue
         items.append(str(relative).replace("\\", "/"))
     return items
+
+
+def read_optional_text(path: Path) -> str:
+    if not path.exists() or not path.is_file():
+        return ""
+    if path.is_symlink():
+        raise ValueError("symlinked files are not allowed")
+    return path.read_text(encoding="utf-8")
+
+
+def normalize_run_input_file_path(filename: str) -> str:
+    normalized = normalize_run_relative_path(filename, allow_nested=True)
+    if normalized.startswith("source_pack/") or normalized.startswith("upstream_artifacts/"):
+        return normalized
+    return str(Path("source_pack") / normalized)
 
 
 def run_status_path(run_dir: Path) -> Path:
@@ -700,6 +718,109 @@ def write_run_request_files(run_dir: Path, run_id: str, agent: str, goal: str, t
     return status_payload
 
 
+def write_run_request_files_for_upstream_handoff(
+    run_dir: Path,
+    *,
+    run_id: str,
+    upstream_run_id: str,
+    upstream_agent: str,
+    target_agent: str,
+    upstream_artifact_source_path: str,
+    local_copied_artifact_path: str,
+    upstream_request_md: str,
+    course_brief_status: str,
+    source_files: list[str],
+) -> dict[str, object]:
+    expected_execution_behavior = (
+        "Course Architect may STOP with STOP_COURSE_BRIEF_MISSING unless a course brief artifact is provided by workflow/project setup."
+        if course_brief_status == "missing"
+        else "Course Architect can proceed if the upstream course brief artifact is available in the workflow chain."
+    )
+    ensure_run_structure(run_dir)
+    status_payload = {
+        "run_id": run_id,
+        "agent": target_agent,
+        "status": RUN_PENDING_STATUS,
+        "created_at_utc": utc_stamp(),
+        "goal": "Execute the next agent using upstream artifacts.",
+        "target_audience": "from upstream handoff",
+        "source_files": source_files,
+        "output_files": [],
+        "input_mode": "upstream_artifact_handoff",
+        "upstream_run_id": upstream_run_id,
+        "upstream_agent": upstream_agent,
+        "upstream_artifact_source_path": upstream_artifact_source_path,
+        "local_copied_artifact_path": local_copied_artifact_path,
+        "course_brief_status": course_brief_status,
+        "expected_execution_behavior": expected_execution_behavior,
+    }
+    request_lines = [
+        "# Run request",
+        "",
+        "## Run ID",
+        "",
+        run_id,
+        "",
+        "## Agent",
+        "",
+        target_agent,
+        "",
+        "## Status",
+        "",
+        RUN_PENDING_STATUS,
+        "",
+        "## Input mode",
+        "",
+        "upstream_artifact_handoff",
+        "",
+        "## Upstream run ID",
+        "",
+        upstream_run_id,
+        "",
+        "## Upstream agent",
+        "",
+        upstream_agent,
+        "",
+        "## Target agent",
+        "",
+        target_agent,
+        "",
+        "## Upstream artifact source path",
+        "",
+        upstream_artifact_source_path,
+        "",
+        "## Local copied artifact path",
+        "",
+        local_copied_artifact_path,
+        "",
+        "## Inherited context",
+        "",
+        upstream_request_md.strip() or "(upstream RUN_REQUEST.md not available)",
+        "",
+        "## Course brief status",
+        "",
+        course_brief_status,
+        "",
+        "## Expected execution behavior",
+        "",
+        expected_execution_behavior,
+        "",
+        "## Execution rule",
+        "",
+        "This run request was created by the upstream artifact handoff workflow.",
+        "",
+        "The UI does not execute Codex or model calls.",
+        "",
+        "A separate controlled Codex run must read this request, execute only the selected agent, and write results to:",
+        "",
+        "`output/`",
+        "",
+    ]
+    run_request_path(run_dir).write_text("\n".join(request_lines), encoding="utf-8")
+    run_status_path(run_dir).write_text(json.dumps(status_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return status_payload
+
+
 def store_run_source_file(run_dir: Path, filename: str, content: str, *, allow_nested: bool = False) -> str:
     normalized_filename = normalize_run_relative_path(filename, allow_nested=allow_nested)
     if Path(normalized_filename).suffix.lower() != ".md":
@@ -764,17 +885,109 @@ def extract_zip_source_files(run_dir: Path, archive_name: str, archive_bytes: by
     return extracted
 
 
+def supported_upstream_handoff(upstream_agent: str, target_agent: str) -> bool:
+    return (upstream_agent, target_agent) in RUN_SUPPORTED_UPSTREAM_HANDOFFS
+
+
+def resolve_completed_run_source_digest(upstream_run_id: str) -> tuple[Path, dict[str, object]]:
+    upstream_run_dir = resolve_run_dir(upstream_run_id, must_exist=True)
+    status = load_run_status(upstream_run_dir)
+    if status.get("status") != "completed_success":
+        raise ApiError("UPSTREAM_RUN_NOT_COMPLETED", "Upstream run must be completed_success.")
+    if status.get("agent") != "source-analyst":
+        raise ApiError("UPSTREAM_AGENT_UNSUPPORTED", "Upstream run must be Source Analyst for this handoff.")
+    source_digest = upstream_run_dir / RUN_OUTPUT_DIR / "source_digest.md"
+    if not source_digest.exists() or not source_digest.is_file():
+        raise ApiError("UPSTREAM_SOURCE_DIGEST_MISSING", "Upstream source_digest.md is missing.")
+    return source_digest, status
+
+
+def find_course_brief_artifact() -> tuple[str, str]:
+    candidates = [
+        RUNS_ROOT / "course_brief.md",
+        REPO_ROOT / "course_brief.md",
+        REPO_ROOT / "docs" / "project" / "course_brief.md",
+    ]
+    for path in candidates:
+        if path.exists() and path.is_file():
+            return str(path.relative_to(REPO_ROOT)), path.read_text(encoding="utf-8")
+    return "", ""
+
+
+def create_upstream_handoff_run(upstream_run_id: str, target_agent: str) -> dict[str, object]:
+    if target_agent != "course-architect":
+        raise ApiError("UNSUPPORTED_TARGET_AGENT", "This upstream handoff slice only supports Course Architect.")
+
+    source_digest_path, upstream_status = resolve_completed_run_source_digest(upstream_run_id)
+    if not supported_upstream_handoff(str(upstream_status.get("agent", "")), target_agent):
+        raise ApiError("UNSUPPORTED_UPSTREAM_HANDOFF", "Unsupported upstream handoff pair.")
+
+    target_run_id = create_unique_run_id(target_agent)
+    target_run_dir = RUNS_ROOT / target_run_id
+    try:
+        ensure_run_structure(target_run_dir)
+        copied_root = target_run_dir / RUN_UPSTREAM_INPUT_DIR / upstream_run_id
+        copied_root.mkdir(parents=True, exist_ok=True)
+        copied_source_digest = copied_root / source_digest_path.name
+        shutil.copy2(source_digest_path, copied_source_digest)
+        local_copied_artifact_path = str(
+            Path("input") / "upstream_artifacts" / upstream_run_id / source_digest_path.name
+        )
+        upstream_artifact_source_path = str(Path("output") / source_digest_path.name)
+
+        upstream_request_path = RUNS_ROOT / upstream_run_id / RUN_REQUEST_FILENAME
+        upstream_request_md = read_optional_text(upstream_request_path)
+        _, course_brief_md = find_course_brief_artifact()
+        course_brief_status = "present" if course_brief_md else "missing"
+
+        source_files = [local_copied_artifact_path]
+        status_payload = write_run_request_files_for_upstream_handoff(
+            target_run_dir,
+            run_id=target_run_id,
+            upstream_run_id=upstream_run_id,
+            upstream_agent=str(upstream_status.get("agent", "")),
+            target_agent=target_agent,
+            upstream_artifact_source_path=upstream_artifact_source_path,
+            local_copied_artifact_path=local_copied_artifact_path,
+            upstream_request_md=upstream_request_md,
+            course_brief_status=course_brief_status,
+            source_files=source_files,
+        )
+        status_payload["course_brief_status"] = course_brief_status
+        status_payload["input_mode"] = "upstream_artifact_handoff"
+        status_payload["upstream_run_id"] = upstream_run_id
+        status_payload["upstream_agent"] = upstream_status.get("agent", "")
+        status_payload["upstream_artifact_source_path"] = upstream_artifact_source_path
+        status_payload["local_copied_artifact_path"] = local_copied_artifact_path
+        return {
+            "ok": True,
+            "run_id": target_run_id,
+            "status": RUN_PENDING_STATUS,
+            "upstream_run_id": upstream_run_id,
+            "upstream_agent": upstream_status.get("agent", ""),
+            "target_agent": target_agent,
+            "input_mode": "upstream_artifact_handoff",
+            "course_brief_status": course_brief_status,
+            "upstream_artifact_source_path": upstream_artifact_source_path,
+            "local_copied_artifact_path": local_copied_artifact_path,
+            "source_files": source_files,
+        }
+    except Exception:
+        shutil.rmtree(target_run_dir, ignore_errors=True)
+        raise
+
+
 def read_run_file(run_id: str, kind: str, filename: str) -> tuple[Path, str]:
     run_dir = resolve_run_dir(run_id, must_exist=True)
     kind_map = {
-        "input": run_dir / RUN_INPUT_DIR,
+        "input": run_dir / "input",
         "output": run_dir / RUN_OUTPUT_DIR,
         "request": run_dir,
         "log": run_dir / RUN_LOG_DIR,
     }
     if kind not in kind_map:
         raise ApiError("INVALID_KIND", "Недопустимый kind.")
-    relative_name = normalize_run_relative_path(filename, allow_nested=True)
+    relative_name = normalize_run_input_file_path(filename) if kind == "input" else normalize_run_relative_path(filename, allow_nested=True)
     if Path(relative_name).suffix.lower() not in RUN_ALLOWED_READ_EXTS:
         raise ApiError("INVALID_FILENAME", "Некорректное имя файла.")
     root = kind_map[kind]
@@ -854,6 +1067,10 @@ def run_detail_payload(run_id: str) -> dict[str, object]:
     status = load_run_status(run_dir)
     request_md = run_request_path(run_dir).read_text(encoding="utf-8") if run_request_path(run_dir).exists() else ""
     input_files = list_marked_files(run_dir / RUN_INPUT_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
+    upstream_input_files = [
+        str(Path("upstream_artifacts") / name)
+        for name in list_marked_files(run_dir / RUN_UPSTREAM_INPUT_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
+    ]
     output_files = list_marked_files(run_dir / RUN_OUTPUT_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
     log_files = list_marked_files(run_dir / RUN_LOG_DIR, allowed_exts=RUN_ALLOWED_READ_EXTS)
     return {
@@ -862,6 +1079,7 @@ def run_detail_payload(run_id: str) -> dict[str, object]:
         "status_json": status,
         "run_request_md": request_md,
         "input_files": input_files,
+        "upstream_input_files": upstream_input_files,
         "output_files": output_files,
         "log_files": log_files,
     }
@@ -892,6 +1110,18 @@ def api_runs_create(handler: BaseHTTPRequestHandler) -> tuple[int, dict[str, obj
     form = parse_multipart_form(handler)
     payload = create_run_request_from_form(form)
     return 201, api_ok(payload)
+
+
+def api_runs_next(handler: BaseHTTPRequestHandler) -> tuple[int, dict[str, object]]:
+    payload = json_body(handler)
+    upstream_run_id = safe_text(payload.get("upstream_run_id")).strip()
+    target_agent = safe_text(payload.get("target_agent")).strip()
+    if not upstream_run_id:
+        raise ApiError("UPSTREAM_RUN_ID_REQUIRED", "Укажите upstream_run_id.")
+    if not target_agent:
+        raise ApiError("TARGET_AGENT_REQUIRED", "Укажите target_agent.")
+    result = create_upstream_handoff_run(upstream_run_id, target_agent)
+    return 201, api_ok(result)
 
 
 def api_runs_detail(query: dict[str, list[str]]) -> tuple[int, dict[str, object]]:
@@ -1062,6 +1292,10 @@ class AdminHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/runs/create":
                 status, response = api_runs_create(self)
+                self.send_json(status, response)
+                return
+            if parsed.path == "/api/runs/next":
+                status, response = api_runs_next(self)
                 self.send_json(status, response)
                 return
             if is_api_route:

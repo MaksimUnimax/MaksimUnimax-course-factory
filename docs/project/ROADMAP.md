@@ -87,11 +87,15 @@ Use the accepted source digest to create a curriculum map.
 
 ## Stage 8 — `/runs` upstream artifact handoff
 
-Status: next technical step.
+Status: partial.
 
-Implement upstream artifact handoff in `/runs` so each downstream run can consume prior artifacts directly instead of relying on manual ChatGPT-made reupload archives.
+Implemented for the first slice:
 
-This is the canonical pipeline step needed before treating downstream execution as fully automated artifact handoff.
+- completed Source Analyst run -> pending Course Architect run;
+- controlled copy of upstream `source_digest.md`;
+- explicit `upstream_run_id` and `input_mode` in the downstream run.
+
+Next: extend the same pattern to later agents and project-level course artifacts.
 
 ## Stage 9 — Additional agents one by one
 

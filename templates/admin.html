@@ -125,15 +125,23 @@
           <div class="small">Запуск: <strong id="run-detail-id">-</strong></div>
           <div class="small">Агент: <strong id="run-detail-agent">-</strong></div>
           <div class="small">Статус: <strong id="run-detail-status">-</strong></div>
+          <div class="small">Input mode: <span id="run-detail-input-mode">-</span></div>
+          <div class="small">Upstream run: <span id="run-detail-upstream-run">-</span></div>
+          <div class="small">Upstream agent: <span id="run-detail-upstream-agent">-</span></div>
+          <div class="small">Course brief status: <span id="run-detail-course-brief-status">-</span></div>
           <div class="small">Цель: <span id="run-detail-goal">-</span></div>
           <div class="small">Аудитория: <span id="run-detail-audience">-</span></div>
           <div class="small">Список исходников: <span id="run-detail-sources">-</span></div>
+          <button id="create-next-course-architect" class="secondary" type="button" style="display:none;">Создать следующий запуск: Course Architect</button>
+          <div id="create-next-run-hint" class="small"></div>
           <div class="small">RUN_REQUEST.md</div>
           <pre id="run-request-view" class="run-code"></pre>
           <div class="small">status.json</div>
           <pre id="run-status-view" class="run-code"></pre>
           <div class="small">Входные файлы</div>
           <div id="run-input-files" class="run-file-list"></div>
+          <div class="small">Унаследованные upstream artifacts</div>
+          <div id="run-upstream-input-files" class="run-file-list"></div>
           <div class="small">Выходные файлы</div>
           <div id="run-output-empty" class="warning">Результата ещё нет. Выполните отдельный Codex-run для этой заявки.</div>
           <div id="run-output-files" class="run-file-list"></div>

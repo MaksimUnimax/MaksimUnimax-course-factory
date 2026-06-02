@@ -35,12 +35,19 @@
     detailId: document.getElementById("run-detail-id"),
     detailAgent: document.getElementById("run-detail-agent"),
     detailStatus: document.getElementById("run-detail-status"),
+    detailInputMode: document.getElementById("run-detail-input-mode"),
+    detailUpstreamRun: document.getElementById("run-detail-upstream-run"),
+    detailUpstreamAgent: document.getElementById("run-detail-upstream-agent"),
+    detailCourseBriefStatus: document.getElementById("run-detail-course-brief-status"),
     detailGoal: document.getElementById("run-detail-goal"),
     detailAudience: document.getElementById("run-detail-audience"),
     detailSources: document.getElementById("run-detail-sources"),
+    nextRunButton: document.getElementById("create-next-course-architect"),
+    nextRunHint: document.getElementById("create-next-run-hint"),
     requestView: document.getElementById("run-request-view"),
     statusView: document.getElementById("run-status-view"),
     inputFiles: document.getElementById("run-input-files"),
+    upstreamInputFiles: document.getElementById("run-upstream-input-files"),
     outputEmpty: document.getElementById("run-output-empty"),
     outputFiles: document.getElementById("run-output-files"),
     fileLabel: document.getElementById("run-file-label"),
@@ -163,6 +170,12 @@
     if (!runs.createButton) return;
     runs.createButton.disabled = isBusy;
     runs.createButton.textContent = isBusy ? "Создаём заявку..." : "Создать запуск выбранного агента";
+  }
+
+  function setNextRunButtonBusy(isBusy) {
+    if (!runs.nextRunButton) return;
+    runs.nextRunButton.disabled = isBusy;
+    runs.nextRunButton.textContent = isBusy ? "Создаём следующий запуск..." : "Создать следующий запуск: Course Architect";
   }
 
   function renderAgentCards() {
@@ -412,6 +425,50 @@
     });
   }
 
+  function isEligibleForCourseArchitectRun(detail) {
+    const status = detail?.status_json || {};
+    const outputFiles = detail?.output_files || [];
+    return status.agent === "source-analyst" && status.status === "completed_success" && outputFiles.includes("source_digest.md");
+  }
+
+  async function createNextCourseArchitectRun() {
+    if (!selectedRunId || !runs.nextRunButton) return;
+    setNextRunButtonBusy(true);
+    setMessage(runs.createMessage, "Создаём следующий запуск из upstream artifacts...");
+    try {
+      const response = await fetch("/api/runs/next", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          upstream_run_id: selectedRunId,
+          target_agent: "course-architect",
+        }),
+      });
+      const text = await response.text();
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: text };
+        }
+      }
+      if (!response.ok || !data.ok) {
+        const details = describeError({ message: data.error || `HTTP ${response.status}`, data, status: response.status }, "неизвестная ошибка");
+        setMessage(runs.createMessage, `Не удалось создать следующий запуск: ${details}`, "error");
+        return;
+      }
+      setMessage(
+        runs.createMessage,
+        `Создан следующий запуск ${data.run_id} из upstream artifacts. Новый run pending_codex_execution, архив повторно загружать не нужно.`
+      );
+      await refreshRuns(true);
+      await loadRunDetail(data.run_id, { silent: true, skipFirstOutput: true });
+    } finally {
+      setNextRunButtonBusy(false);
+    }
+  }
+
   async function loadRunFile(runId, kind, filename) {
     if (!runs.fileView || !runs.fileLabel) return;
     selectedRunId = runId;
@@ -446,15 +503,30 @@
     runs.detailId.textContent = detail.run_id || "-";
     runs.detailAgent.textContent = detail.status_json?.agent || "-";
     runs.detailStatus.textContent = detail.status_json?.status || "-";
+    if (runs.detailInputMode) runs.detailInputMode.textContent = detail.status_json?.input_mode || "-";
+    if (runs.detailUpstreamRun) runs.detailUpstreamRun.textContent = detail.status_json?.upstream_run_id || "-";
+    if (runs.detailUpstreamAgent) runs.detailUpstreamAgent.textContent = detail.status_json?.upstream_agent || "-";
+    if (runs.detailCourseBriefStatus) runs.detailCourseBriefStatus.textContent = detail.status_json?.course_brief_status || "-";
     runs.detailGoal.textContent = detail.status_json?.goal || "-";
     runs.detailAudience.textContent = detail.status_json?.target_audience || "-";
     runs.detailSources.textContent = (detail.status_json?.source_files || []).join(", ") || "-";
     runs.requestView.value = detail.run_request_md || "";
     runs.statusView.value = formatJson(detail.status_json || {});
     renderRunFiles(runs.inputFiles, detail.run_id, "input", detail.input_files || [], "Входных файлов пока нет.");
+    renderRunFiles(runs.upstreamInputFiles, detail.run_id, "input", detail.upstream_input_files || [], "Унаследованных upstream artifacts пока нет.");
     renderRunFiles(runs.outputFiles, detail.run_id, "output", detail.output_files || [], "Результата ещё нет. Выполните отдельный Codex-run для этой заявки.");
     if (runs.outputEmpty) {
       runs.outputEmpty.style.display = (detail.output_files || []).length ? "none" : "block";
+    }
+    if (runs.nextRunButton) {
+      const eligible = isEligibleForCourseArchitectRun(detail);
+      runs.nextRunButton.style.display = eligible ? "inline-flex" : "none";
+      runs.nextRunButton.disabled = false;
+    }
+    if (runs.nextRunHint) {
+      runs.nextRunHint.textContent = isEligibleForCourseArchitectRun(detail)
+        ? "Этот запуск использует upstream artifacts из completed Source Analyst run. Новый архив загружать не нужно."
+        : "Для этого действия нужен completed Source Analyst run со `source_digest.md`.";
     }
     if (runs.fileLabel) {
       runs.fileLabel.textContent = "-";
@@ -625,6 +697,7 @@
     renderAgentSelect();
     restoreRunDraft();
     if (runs.createButton) runs.createButton.addEventListener("click", createRun);
+    if (runs.nextRunButton) runs.nextRunButton.addEventListener("click", createNextCourseArchitectRun);
     if (runs.agentSelect) {
       runs.agentSelect.addEventListener("change", syncRunDraftFromUI);
     }
