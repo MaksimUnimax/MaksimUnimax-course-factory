@@ -26,6 +26,11 @@ Proof first, then design, then minimal change, then repeat proof.
 
 All changes must be git-tracked.
 
+Pipeline handoff rules are defined in:
+
+- `docs/course_factory/METHOD.md`
+- `docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`
+
 ## Course content rule
 
 Course and lesson content must be source-grounded.

@@ -29,6 +29,14 @@ Fixed:
 The `/runs` source input now accepts individual `.md` files, `.zip` archives containing markdown files, and mixed `.md` + `.zip` selections.
 Extracted markdown files are stored under `runs/<run_id>/input/source_pack/` and listed in the run request.
 
+The canonical pipeline handoff rule is documented in:
+
+`docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`
+
+The manual `20260602_092930_course-architect` run and commit `a010cd1d01cc456f17fb260097e12244a5bff612` are useful manual/upload-based execution evidence, but they are not accepted as canonical pipeline proof.
+
+The next technical step is to implement `/runs` upstream artifact handoff so downstream agents can consume previous artifacts directly.
+
 The first controlled Source Analyst run has been completed.
 
 Run:

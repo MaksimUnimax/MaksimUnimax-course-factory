@@ -85,7 +85,15 @@ Status: next after review.
 
 Use the accepted source digest to create a curriculum map.
 
-## Stage 8 — Additional agents one by one
+## Stage 8 — `/runs` upstream artifact handoff
+
+Status: next technical step.
+
+Implement upstream artifact handoff in `/runs` so each downstream run can consume prior artifacts directly instead of relying on manual ChatGPT-made reupload archives.
+
+This is the canonical pipeline step needed before treating downstream execution as fully automated artifact handoff.
+
+## Stage 9 — Additional agents one by one
 
 Status: later.
 
@@ -98,7 +106,7 @@ Add and test:
 - Grounding Reviewer;
 - Publisher.
 
-## Stage 9 — Real backend/tool architecture
+## Stage 10 — Real backend/tool architecture
 
 Status: later.
 

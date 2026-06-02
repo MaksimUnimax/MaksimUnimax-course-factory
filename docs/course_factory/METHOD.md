@@ -8,6 +8,10 @@ It does not generate a full course in one uncontrolled step.
 
 It uses a staged pipeline.
 
+Canonical upstream handoff rules are defined in:
+
+`docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`
+
 ## Pipeline
 
 ### 1. Source intake

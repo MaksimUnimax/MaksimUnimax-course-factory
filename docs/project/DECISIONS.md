@@ -47,6 +47,12 @@ The first tested agent is `Source Analyst`.
 
 The first tested output is `source_digest.md`, but user-facing copy should explain it as “разбор исходных материалов”.
 
+Canonical pipeline architecture uses single-upload upstream artifact handoff:
+
+- source intake happens once;
+- downstream agents consume previous artifacts from the workflow chain;
+- manual ChatGPT-made re-upload archives are not canonical pipeline proof.
+
 Existing old projects are no-touch in Course Factory workflow.
 
 Hand-edited UI changes should be followed by a small commit/push Codex-run to avoid dirty working tree mixing.
