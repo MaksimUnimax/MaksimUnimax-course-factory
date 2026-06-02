@@ -8,7 +8,7 @@ The first goal is to prove agent/skill methodology before building backend or UI
 
 Editing and documentation are done through Codex and Git.
 
-Course Factory must not create courses from imagination. It must use source materials, explicit methodology sources, marked instructional inferences, and human approval.
+Course Factory must not create courses from imagination. It must use source materials, accepted methodology sources, marked instructional inferences, and human approval.
 
 The initial methodology baseline uses:
 
@@ -100,8 +100,6 @@ Result:
 
 The first proof confirmed that Source Analyst can create a source digest without writing a course, lessons, or curriculum map.
 
-The next decision is whether this first digest is acceptable for Course Architect or whether Source Analyst needs a stricter traceability requirement before continuing.
-
 ## 2026-06-02 — Upstream artifact handoff is canonical
 
 The canonical pipeline architecture is single-upload upstream artifact handoff.
@@ -127,3 +125,18 @@ Decision:
 The methodology-reference governance doc is part of the canonical documentation set:
 
 - `docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`
+
+## 2026-06-02 — Proven first two controlled runs
+
+The proven file-based pipeline now includes both controlled execution steps:
+
+- `20260602_124454_source-analyst` produced `source_digest.md` with `PASS_SOURCE_DIGEST_READY`;
+- `20260602_125523_course-architect` consumed the upstream `source_digest.md` and `course_brief.md`, and produced `curriculum_map.md` with `PASS_CURRICULUM_MAP_READY`.
+
+The Course Architect run is valid as canonical pipeline proof.
+
+## 2026-06-02 — Lesson Designer is the next blocked step
+
+Lesson Designer skill docs are still placeholder/thin and must be updated before the first controlled Lesson Designer run.
+
+The current next step is to strengthen the Lesson Designer contracts and then run the next controlled downstream stage.

@@ -61,33 +61,51 @@ Status: completed.
 
 Completed run:
 
-`20260601_102242_source-analyst`
+`20260602_124454_source-analyst`
 
 Output:
 
-`runs/20260601_102242_source-analyst/output/source_digest.md`
+`runs/20260602_124454_source-analyst/output/source_digest.md`
 
 Result:
 
 `completed_success`
 
-## Stage 6 — Source Analyst result review
+## Stage 6 — Course Architect controlled execution
 
-Status: current.
+Status: completed.
 
-Review the first `source_digest.md` and the accepted methodology references together.
+Completed run:
 
-Redesign the universal course setup model from the accepted methodology references before any new UI implementation.
+`20260602_125523_course-architect`
 
-The current `/runs` setup is now dropdown-only and topic-agnostic.
+Input mode:
 
-Decide whether it is acceptable for Course Architect or whether Source Analyst contracts need stricter source traceability.
+`upstream_artifact_handoff`
 
-## Stage 7 — Course Architect controlled execution
+Upstream artifacts:
 
-Status: next after review.
+- `input/upstream_artifacts/20260602_124454_source-analyst/source_digest.md`
+- `input/upstream_artifacts/20260602_124454_source-analyst/course_brief.md`
 
-Use the accepted source digest to create a curriculum map.
+Output:
+
+`runs/20260602_125523_course-architect/output/curriculum_map.md`
+
+Result:
+
+`completed_success`
+
+## Stage 7 — Lesson Designer readiness
+
+Status: next after docs update.
+
+Lesson Designer skill docs are still placeholder/thin and must be updated before the first controlled Lesson Designer run.
+
+Current next technical step:
+
+- update Lesson Designer docs and contracts;
+- then create the first controlled Lesson Designer run from the proven `curriculum_map.md`.
 
 ## Stage 8 — `/runs` upstream artifact handoff
 
@@ -108,7 +126,6 @@ Status: later.
 
 Add and test:
 
-- Lesson Designer;
 - Lesson Writer;
 - Assessment Designer;
 - Quality Reviewer;

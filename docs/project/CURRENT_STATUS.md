@@ -13,90 +13,93 @@ Course Factory is in the file-based agent/skill test bench stage.
 - selected-agent run request UI: available at `/runs`
 - actual Codex/model execution from web UI: disabled by design
 - run output viewer: available
-- first tested agent: `source-analyst`
+- source upload: `.md`, `.zip`, and mixed `.md` + `.zip` source intake
+- course setup model: dropdown-only and topic-agnostic
+- upstream handoff: implemented for completed Source Analyst run -> pending Course Architect run
+- methodology-reference governance: documented
+- pipeline handoff contract: documented
 
-## Latest completed technical state
+## Current completed proof chain
 
-The `/runs` UI bugfix has been completed.
-
-Fixed:
-
-- `/api/runs`, `/api/runs/detail`, and `/api/runs/file` now return consistent success shape;
-- API errors are clearer;
-- selected agent, goal, and target audience are preserved as a browser draft;
-- the UI explains that file inputs must be selected again after refresh.
-
-The `/runs` source input now accepts individual `.md` files, `.zip` archives containing markdown files, and mixed `.md` + `.zip` selections.
-Extracted markdown files are stored under `runs/<run_id>/input/source_pack/` and listed in the run request.
-
-The current `/runs` course setup model is dropdown-only and topic-agnostic.
-Uploaded source documents define the subject and facts.
-Structured dropdowns define the course type, audience, starting level, learning result, output type, size, depth, explanation style, practice, assessment, feedback, source strictness, sensitivity, and course mode.
-Free-text course setup fields are not part of this slice.
-
-The canonical pipeline handoff rule is documented in:
-
-`docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`
-
-The methodology-reference governance rule is documented in:
-
-`docs/course_factory/METHODOLOGY_REFERENCE_GOVERNANCE.md`
-
-The manual `20260602_092930_course-architect` run and commit `a010cd1d01cc456f17fb260097e12244a5bff612` are useful manual/upload-based execution evidence, but they are not accepted as canonical pipeline proof.
-
-The `/runs` upstream artifact handoff now exists for the first slice:
-
-- completed Source Analyst run -> pending Course Architect run;
-- upstream source digest is copied as a controlled artifact;
-- when the upstream Source Analyst intake has structured course settings, it also carries `course_setup.json` and `output/course_brief.md`;
-- downstream execution still happens separately.
-
-The next technical step is to extend the same upstream handoff pattern to later agents and project-level course artifacts.
-
-The first controlled Source Analyst run has been completed.
+### Source Analyst proof
 
 Run:
 
-`20260601_102242_source-analyst`
+`20260602_124454_source-analyst`
+
+Commit:
+
+`72816db921971b26097422b801ed052ecdcabdd4`
 
 Input:
 
-`runs/20260601_102242_source-analyst/input/source_pack/openscript_agent_lab_student_kit_source.md`
+`runs/20260602_124454_source-analyst/input/source_pack/openscript_agent_lab_student_kit_source.md`
 
-Output:
+Workflow artifact created by UI:
 
-`runs/20260601_102242_source-analyst/output/source_digest.md`
+`runs/20260602_124454_source-analyst/output/course_brief.md`
+
+Agent output:
+
+`runs/20260602_124454_source-analyst/output/source_digest.md`
 
 Status:
 
-`completed_success`
+`PASS_SOURCE_DIGEST_READY`
 
-The Source Analyst result is a `source_digest.md`, meaning “разбор исходных материалов”.
+Meaning:
+
+`source_digest.md` = разбор исходных материалов.
 
 The run did not write a course, did not write lessons, did not create a curriculum map, and did not execute other agents.
 
+### Course Architect proof
+
+Run:
+
+`20260602_125523_course-architect`
+
+Commit:
+
+`8a6f25cfab60402905ed745c68b9497f42872bab`
+
+Input mode:
+
+`upstream_artifact_handoff`
+
+Upstream run:
+
+`20260602_124454_source-analyst`
+
+Upstream artifacts:
+
+- `input/upstream_artifacts/20260602_124454_source-analyst/source_digest.md`
+- `input/upstream_artifacts/20260602_124454_source-analyst/course_brief.md`
+
+Agent output:
+
+`runs/20260602_125523_course-architect/output/curriculum_map.md`
+
+Status:
+
+`PASS_CURRICULUM_MAP_READY`
+
+Meaning:
+
+`curriculum_map.md` = карта курса.
+
+The run did not write lessons, did not create assessment files, did not execute Lesson Designer, and did not change app/docs/skills/tests.
+
 ## Current active block
 
-Review the first Source Analyst output and decide whether it is good enough to use as input for the next agent.
+Course Factory file-based agent/skill test bench.
 
-## Current blocker
+The first two artifact stages are proven:
 
-Before running Course Architect, the user and ChatGPT must review `source_digest.md`.
-
-Known quality concern:
-
-The first Source Analyst output is useful for a first proof, but it is still high-level. The next iteration may need stronger source traceability: each key conclusion should be tied to a source section or source file.
-
-## Next recommended step
-
-Review the output:
-
-`runs/20260601_102242_source-analyst/output/source_digest.md`
-
-Then review the accepted methodology references and redesign the universal course setup model from them before any new UI implementation.
-
-Then decide one of:
-
-1. accept it and create a controlled `Course Architect` run;
-2. improve the Source Analyst contracts to require stronger source traceability;
-3. rerun Source Analyst with a stricter output requirement.
+```text
+source material + dropdown-only course setup
+→ Source Analyst
+→ source_digest.md
+→ Course Architect through upstream handoff
+→ curriculum_map.md
+```
