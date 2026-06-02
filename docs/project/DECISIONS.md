@@ -84,3 +84,14 @@ Result:
 The first proof confirmed that Source Analyst can create a source digest without writing a course, lessons, or curriculum map.
 
 The next decision is whether this first digest is acceptable for Course Architect or whether Source Analyst needs a stricter traceability requirement before continuing.
+
+## 2026-06-02 — Upstream artifact handoff is canonical
+
+The canonical pipeline architecture is single-upload upstream artifact handoff.
+
+Decision:
+
+- source intake happens once;
+- downstream agents must consume previous artifacts from the workflow chain;
+- manual ChatGPT-made re-upload archives are allowed only for isolated upload/UI tests, not as canonical pipeline proof;
+- downstream run creation should carry upstream lineage explicitly, not rely on ad-hoc re-uploaded artifacts.
