@@ -93,6 +93,7 @@ Implemented for the first slice:
 
 - completed Source Analyst run -> pending Course Architect run;
 - controlled copy of upstream `source_digest.md`;
+- controlled copy of upstream `course_brief.md` when the intake created it;
 - explicit `upstream_run_id` and `input_mode` in the downstream run.
 
 Next: extend the same pattern to later agents and project-level course artifacts.

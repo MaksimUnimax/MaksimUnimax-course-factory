@@ -98,12 +98,86 @@
             <span>Агент</span>
             <select id="run-agent-select"></select>
           </label>
+          <div class="small">Задание на курс</div>
+          <div class="small">Эти настройки сохраняются как "Задание на курс" и передаются следующим агентам автоматически.</div>
+          <div class="course-setup-grid">
+            <label class="field">
+              <span>Тип курса</span>
+              <select id="run-course-type">
+                <option selected>Практический вводный курс</option>
+                <option>Мини-курс</option>
+                <option>Пошаговый туториал</option>
+                <option>Внутренний обучающий курс</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Для кого курс</span>
+              <select id="run-target-audience-type">
+                <option selected>Абсолютные новички, не программисты</option>
+                <option>Новички с базовым опытом ChatGPT</option>
+                <option>Начинающие разработчики</option>
+                <option>Внутренняя команда проекта</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Стартовый уровень ученика</span>
+              <select id="run-learner-starting-level">
+                <option selected>С нуля, без Git, терминала и сервера</option>
+                <option>Умеет пользоваться ChatGPT, но не знает Git и сервер</option>
+                <option>Знает GitHub на базовом уровне</option>
+                <option>Знает терминал и Git на базовом уровне</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Цель курса</span>
+              <select id="run-course-goal-choice">
+                <option selected>Научиться управлять AI-разработкой через ChatGPT, Codex, сервер и GitHub</option>
+                <option>Научиться превращать исходные материалы в структуру курса</option>
+                <option>Научиться запускать по одному controlled task и проверять результат</option>
+                <option>Научиться работать с agent/tool workflow на учебном проекте</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Что должно получиться в конце</span>
+              <select id="run-expected-practical-result">
+                <option selected>GitHub-backed учебный проект с документацией и первым проверенным результатом</option>
+                <option>Разбор исходников и карта курса</option>
+                <option>Один рабочий агентский pipeline от источников до урока</option>
+                <option>Read-only preview и проверяемый Codex report</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Размер курса</span>
+              <select id="run-preferred-course-size">
+                <option selected>4-5 уроков</option>
+                <option>6-8 уроков</option>
+                <option>9-12 уроков</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Стиль объяснения</span>
+              <select id="run-explanation-style">
+                <option selected>Простой русский, без перегруза</option>
+                <option>Спокойный наставник</option>
+                <option>Коротко и по делу</option>
+                <option>Подробно для новичка</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Границы курса</span>
+              <select id="run-scope-strictness">
+                <option selected>Только MVP, без продакшн-архитектуры</option>
+                <option>MVP плюс минимальные пояснения архитектуры</option>
+                <option>Учебный проект с осторожными техническими деталями</option>
+              </select>
+            </label>
+          </div>
           <label class="field">
-            <span>Цель</span>
+            <span>Комментарий к цели</span>
             <input id="run-goal" type="text" placeholder="Например: source digest для документов проекта">
           </label>
           <label class="field">
-            <span>Целевая аудитория</span>
+            <span>Комментарий к аудитории</span>
             <input id="run-target-audience" type="text" placeholder="Например: внутренний техрайтер">
           </label>
           <label class="field">

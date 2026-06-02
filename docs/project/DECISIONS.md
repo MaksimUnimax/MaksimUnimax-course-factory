@@ -95,3 +95,14 @@ Decision:
 - downstream agents must consume previous artifacts from the workflow chain;
 - manual ChatGPT-made re-upload archives are allowed only for isolated upload/UI tests, not as canonical pipeline proof;
 - downstream run creation should carry upstream lineage explicitly, not rely on ad-hoc re-uploaded artifacts.
+
+## 2026-06-02 — Course setup UI creates the course brief
+
+The structured `/runs` intake form is the canonical source of course setup.
+
+Decision:
+
+- the initial Source Analyst intake saves structured course settings once;
+- the intake creates `course_setup.json` and `output/course_brief.md` as workflow artifacts;
+- `course_brief.md` is a human/workflow artifact, not an agent output;
+- downstream agents consume the saved course brief through upstream handoff instead of a fresh ChatGPT-made upload archive.

@@ -39,6 +39,7 @@ The `/runs` upstream artifact handoff now exists for the first slice:
 
 - completed Source Analyst run -> pending Course Architect run;
 - upstream source digest is copied as a controlled artifact;
+- when the upstream Source Analyst intake has structured course settings, it also carries `course_setup.json` and `output/course_brief.md`;
 - downstream execution still happens separately.
 
 The next technical step is to extend the same upstream handoff pattern to later agents and project-level course artifacts.

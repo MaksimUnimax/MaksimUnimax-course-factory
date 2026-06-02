@@ -26,6 +26,14 @@
   const runs = {
     list: document.getElementById("run-list"),
     agentSelect: document.getElementById("run-agent-select"),
+    courseType: document.getElementById("run-course-type"),
+    targetAudienceType: document.getElementById("run-target-audience-type"),
+    learnerStartingLevel: document.getElementById("run-learner-starting-level"),
+    courseGoal: document.getElementById("run-course-goal-choice"),
+    expectedPracticalResult: document.getElementById("run-expected-practical-result"),
+    preferredCourseSize: document.getElementById("run-preferred-course-size"),
+    explanationStyle: document.getElementById("run-explanation-style"),
+    scopeStrictness: document.getElementById("run-scope-strictness"),
     goal: document.getElementById("run-goal"),
     targetAudience: document.getElementById("run-target-audience"),
     sourceFiles: document.getElementById("run-source-files"),
@@ -129,6 +137,14 @@
     if (!runs.agentSelect || !runs.goal || !runs.targetAudience) return;
     const payload = {
       agent: runs.agentSelect.value || "",
+      courseType: runs.courseType?.value || "",
+      targetAudienceType: runs.targetAudienceType?.value || "",
+      learnerStartingLevel: runs.learnerStartingLevel?.value || "",
+      courseGoal: runs.courseGoal?.value || "",
+      expectedPracticalResult: runs.expectedPracticalResult?.value || "",
+      preferredCourseSize: runs.preferredCourseSize?.value || "",
+      explanationStyle: runs.explanationStyle?.value || "",
+      scopeStrictness: runs.scopeStrictness?.value || "",
       goal: runs.goal.value || "",
       targetAudience: runs.targetAudience.value || "",
     };
@@ -142,6 +158,14 @@
   function restoreRunDraft() {
     if (runDraftRestoreApplied || !runs.agentSelect || !runs.goal || !runs.targetAudience) return;
     const draft = getRunDraft();
+    if (draft.courseType && runs.courseType) runs.courseType.value = draft.courseType;
+    if (draft.targetAudienceType && runs.targetAudienceType) runs.targetAudienceType.value = draft.targetAudienceType;
+    if (draft.learnerStartingLevel && runs.learnerStartingLevel) runs.learnerStartingLevel.value = draft.learnerStartingLevel;
+    if (draft.courseGoal && runs.courseGoal) runs.courseGoal.value = draft.courseGoal;
+    if (draft.expectedPracticalResult && runs.expectedPracticalResult) runs.expectedPracticalResult.value = draft.expectedPracticalResult;
+    if (draft.preferredCourseSize && runs.preferredCourseSize) runs.preferredCourseSize.value = draft.preferredCourseSize;
+    if (draft.explanationStyle && runs.explanationStyle) runs.explanationStyle.value = draft.explanationStyle;
+    if (draft.scopeStrictness && runs.scopeStrictness) runs.scopeStrictness.value = draft.scopeStrictness;
     if (draft.goal) runs.goal.value = draft.goal;
     if (draft.targetAudience) runs.targetAudience.value = draft.targetAudience;
     if (draft.agent && Array.from(runs.agentSelect.options).some((option) => option.value === draft.agent)) {
@@ -610,14 +634,6 @@
       setMessage(runs.createMessage, "Сначала выберите агента.", "error");
       return;
     }
-    if (!goal) {
-      setMessage(runs.createMessage, "Укажите цель запуска.", "error");
-      return;
-    }
-    if (!targetAudience) {
-      setMessage(runs.createMessage, "Укажите целевую аудиторию.", "error");
-      return;
-    }
     if (!files || !files.length) {
       setMessage(runs.createMessage, "Добавьте хотя бы один markdown-файл или ZIP-архив.", "error");
       return;
@@ -627,6 +643,14 @@
     form.append("agent", agent);
     form.append("goal", goal);
     form.append("target_audience", targetAudience);
+    if (runs.courseType) form.append("course_type", runs.courseType.value || "");
+    if (runs.targetAudienceType) form.append("target_audience_type", runs.targetAudienceType.value || "");
+    if (runs.learnerStartingLevel) form.append("learner_starting_level", runs.learnerStartingLevel.value || "");
+    if (runs.courseGoal) form.append("course_goal", runs.courseGoal.value || "");
+    if (runs.expectedPracticalResult) form.append("expected_practical_result", runs.expectedPracticalResult.value || "");
+    if (runs.preferredCourseSize) form.append("preferred_course_size", runs.preferredCourseSize.value || "");
+    if (runs.explanationStyle) form.append("explanation_style", runs.explanationStyle.value || "");
+    if (runs.scopeStrictness) form.append("scope_strictness", runs.scopeStrictness.value || "");
     Array.from(files).forEach((file) => {
       form.append("files[]", file, file.name);
     });
@@ -707,6 +731,18 @@
     if (runs.targetAudience) {
       runs.targetAudience.addEventListener("input", syncRunDraftFromUI);
     }
+    [
+      runs.courseType,
+      runs.targetAudienceType,
+      runs.learnerStartingLevel,
+      runs.courseGoal,
+      runs.expectedPracticalResult,
+      runs.preferredCourseSize,
+      runs.explanationStyle,
+      runs.scopeStrictness,
+    ].forEach((field) => {
+      if (field) field.addEventListener("change", syncRunDraftFromUI);
+    });
     if (runs.sourceFiles) {
       runs.sourceFiles.addEventListener("change", () => {
         updateRunSourceHint();

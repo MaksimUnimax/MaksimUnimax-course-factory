@@ -33,7 +33,14 @@ class FakeJsonHandler:
         self.rfile = io.BytesIO(self.body)
 
 
-def write_completed_source_analyst_run(run_root: Path, run_id: str, *, with_source_digest: bool = True, status: str = "completed_success") -> Path:
+def write_completed_source_analyst_run(
+    run_root: Path,
+    run_id: str,
+    *,
+    with_source_digest: bool = True,
+    with_course_brief: bool = False,
+    status: str = "completed_success",
+) -> Path:
     run_dir = run_root / run_id
     admin.ensure_run_structure(run_dir)
     (run_dir / admin.RUN_OUTPUT_DIR / ".gitkeep").touch(exist_ok=True)
@@ -56,11 +63,14 @@ def write_completed_source_analyst_run(run_root: Path, run_id: str, *, with_sour
         "goal": "Build a source digest",
         "target_audience": "internal writer",
         "source_files": ["input/source_pack/source.md"],
-        "output_files": ["source_digest.md"] if with_source_digest else [],
+        "output_files": (["source_digest.md"] if with_source_digest else [])
+        + (["course_brief.md"] if with_course_brief else []),
     }
     (run_dir / admin.RUN_STATUS_FILENAME).write_text(json.dumps(status_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     if with_source_digest:
         (run_dir / admin.RUN_OUTPUT_DIR / "source_digest.md").write_text("# digest\n", encoding="utf-8")
+    if with_course_brief:
+        (run_dir / admin.RUN_OUTPUT_DIR / "course_brief.md").write_text("# brief\n", encoding="utf-8")
     return run_dir
 
 
@@ -75,9 +85,10 @@ class RunUpstreamHandoffTests(unittest.TestCase):
 
     def test_api_runs_next_creates_course_architect_run_from_completed_source_analyst(self) -> None:
         upstream_run_id = "20260601_102242_source-analyst"
-        upstream_run_dir = write_completed_source_analyst_run(self.run_root, upstream_run_id)
+        upstream_run_dir = write_completed_source_analyst_run(self.run_root, upstream_run_id, with_course_brief=True)
         upstream_status_before = (upstream_run_dir / admin.RUN_STATUS_FILENAME).read_text(encoding="utf-8")
         upstream_digest_before = (upstream_run_dir / admin.RUN_OUTPUT_DIR / "source_digest.md").read_text(encoding="utf-8")
+        upstream_brief_before = (upstream_run_dir / admin.RUN_OUTPUT_DIR / "course_brief.md").read_text(encoding="utf-8")
 
         handler = FakeJsonHandler({
             "upstream_run_id": upstream_run_id,
@@ -95,26 +106,44 @@ class RunUpstreamHandoffTests(unittest.TestCase):
         self.assertEqual(status_payload["input_mode"], "upstream_artifact_handoff")
         self.assertEqual(status_payload["upstream_run_id"], upstream_run_id)
         self.assertEqual(status_payload["upstream_agent"], "source-analyst")
-        self.assertEqual(status_payload["course_brief_status"], "missing")
+        self.assertEqual(status_payload["course_brief_status"], "available")
+        self.assertEqual(status_payload["course_brief_source_path"], "output/course_brief.md")
+        self.assertEqual(
+            status_payload["local_copied_course_brief_path"],
+            f"input/upstream_artifacts/{upstream_run_id}/course_brief.md",
+        )
         self.assertEqual(
             status_payload["source_files"],
-            [f"input/upstream_artifacts/{upstream_run_id}/source_digest.md"],
+            [
+                f"input/upstream_artifacts/{upstream_run_id}/source_digest.md",
+                f"input/upstream_artifacts/{upstream_run_id}/course_brief.md",
+            ],
         )
 
         request_md = (new_run_dir / admin.RUN_REQUEST_FILENAME).read_text(encoding="utf-8")
         self.assertIn("upstream_artifact_handoff", request_md)
         self.assertIn(upstream_run_id, request_md)
         self.assertIn("Course brief status", request_md)
-        self.assertIn("STOP_COURSE_BRIEF_MISSING", request_md)
+        self.assertIn("available", request_md)
+        self.assertIn("course_brief.md", request_md)
 
         copied_digest = new_run_dir / admin.RUN_UPSTREAM_INPUT_DIR / upstream_run_id / "source_digest.md"
         self.assertTrue(copied_digest.exists())
         self.assertEqual(copied_digest.read_text(encoding="utf-8"), "# digest\n")
+        copied_brief = new_run_dir / admin.RUN_UPSTREAM_INPUT_DIR / upstream_run_id / "course_brief.md"
+        self.assertTrue(copied_brief.exists())
+        self.assertEqual(copied_brief.read_text(encoding="utf-8"), "# brief\n")
 
         detail = admin.run_detail_payload(new_run_id)
         self.assertEqual(detail["status_json"]["input_mode"], "upstream_artifact_handoff")
         self.assertEqual(detail["status_json"]["upstream_run_id"], upstream_run_id)
-        self.assertEqual(detail["upstream_input_files"], [f"upstream_artifacts/{upstream_run_id}/source_digest.md"])
+        self.assertEqual(
+            detail["upstream_input_files"],
+            [
+                f"upstream_artifacts/{upstream_run_id}/course_brief.md",
+                f"upstream_artifacts/{upstream_run_id}/source_digest.md",
+            ],
+        )
 
         path, relative_name = admin.read_run_file(
             new_run_id,
@@ -123,9 +152,17 @@ class RunUpstreamHandoffTests(unittest.TestCase):
         )
         self.assertEqual(relative_name, f"upstream_artifacts/{upstream_run_id}/source_digest.md")
         self.assertEqual(path.read_text(encoding="utf-8"), "# digest\n")
+        brief_path, brief_relative_name = admin.read_run_file(
+            new_run_id,
+            "input",
+            f"upstream_artifacts/{upstream_run_id}/course_brief.md",
+        )
+        self.assertEqual(brief_relative_name, f"upstream_artifacts/{upstream_run_id}/course_brief.md")
+        self.assertEqual(brief_path.read_text(encoding="utf-8"), "# brief\n")
 
         self.assertEqual((upstream_run_dir / admin.RUN_STATUS_FILENAME).read_text(encoding="utf-8"), upstream_status_before)
         self.assertEqual((upstream_run_dir / admin.RUN_OUTPUT_DIR / "source_digest.md").read_text(encoding="utf-8"), upstream_digest_before)
+        self.assertEqual((upstream_run_dir / admin.RUN_OUTPUT_DIR / "course_brief.md").read_text(encoding="utf-8"), upstream_brief_before)
 
     def test_rejects_missing_upstream_run(self) -> None:
         handler = FakeJsonHandler({
@@ -165,6 +202,23 @@ class RunUpstreamHandoffTests(unittest.TestCase):
             admin.api_runs_next(handler)
 
         self.assertEqual(ctx.exception.code, "UPSTREAM_SOURCE_DIGEST_MISSING")
+
+    def test_handoff_missing_course_brief_remains_missing(self) -> None:
+        upstream_run_id = "20260601_102242_source-analyst"
+        write_completed_source_analyst_run(self.run_root, upstream_run_id, with_course_brief=False)
+
+        handler = FakeJsonHandler({
+            "upstream_run_id": upstream_run_id,
+            "target_agent": "course-architect",
+        })
+
+        status, payload = admin.api_runs_next(handler)
+        self.assertEqual(status, 201)
+        new_run_id = str(payload["run_id"])
+        status_payload = admin.load_run_status(self.run_root / new_run_id)
+        self.assertEqual(status_payload["course_brief_status"], "missing")
+        self.assertNotIn("course_brief_source_path", status_payload)
+        self.assertFalse((self.run_root / new_run_id / admin.RUN_UPSTREAM_INPUT_DIR / upstream_run_id / "course_brief.md").exists())
 
     def test_rejects_unsupported_target_agent(self) -> None:
         upstream_run_id = "20260601_102242_source-analyst"

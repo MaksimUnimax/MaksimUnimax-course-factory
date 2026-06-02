@@ -44,6 +44,89 @@ RUN_OUTPUT_DIR = Path("output")
 RUN_LOG_DIR = Path("logs")
 RUN_ZIP_EXTS = {".zip"}
 RUN_SUPPORTED_UPSTREAM_HANDOFFS = {("source-analyst", "course-architect"): "source_digest.md"}
+COURSE_SETUP_FILENAME = "course_setup.json"
+COURSE_BRIEF_FILENAME = "course_brief.md"
+COURSE_SETUP_SOURCE = "ui_dropdowns"
+COURSE_SETUP_FIELD_DEFS: list[tuple[str, str, list[str]]] = [
+    (
+        "course_type",
+        "Тип курса",
+        [
+            "Практический вводный курс",
+            "Мини-курс",
+            "Пошаговый туториал",
+            "Внутренний обучающий курс",
+        ],
+    ),
+    (
+        "target_audience_type",
+        "Для кого курс",
+        [
+            "Абсолютные новички, не программисты",
+            "Новички с базовым опытом ChatGPT",
+            "Начинающие разработчики",
+            "Внутренняя команда проекта",
+        ],
+    ),
+    (
+        "learner_starting_level",
+        "Стартовый уровень ученика",
+        [
+            "С нуля, без Git, терминала и сервера",
+            "Умеет пользоваться ChatGPT, но не знает Git и сервер",
+            "Знает GitHub на базовом уровне",
+            "Знает терминал и Git на базовом уровне",
+        ],
+    ),
+    (
+        "course_goal",
+        "Цель курса",
+        [
+            "Научиться управлять AI-разработкой через ChatGPT, Codex, сервер и GitHub",
+            "Научиться превращать исходные материалы в структуру курса",
+            "Научиться запускать по одному controlled task и проверять результат",
+            "Научиться работать с agent/tool workflow на учебном проекте",
+        ],
+    ),
+    (
+        "expected_practical_result",
+        "Что должно получиться в конце",
+        [
+            "GitHub-backed учебный проект с документацией и первым проверенным результатом",
+            "Разбор исходников и карта курса",
+            "Один рабочий агентский pipeline от источников до урока",
+            "Read-only preview и проверяемый Codex report",
+        ],
+    ),
+    (
+        "preferred_course_size",
+        "Размер курса",
+        [
+            "4-5 уроков",
+            "6-8 уроков",
+            "9-12 уроков",
+        ],
+    ),
+    (
+        "explanation_style",
+        "Стиль объяснения",
+        [
+            "Простой русский, без перегруза",
+            "Спокойный наставник",
+            "Коротко и по делу",
+            "Подробно для новичка",
+        ],
+    ),
+    (
+        "scope_strictness",
+        "Границы курса",
+        [
+            "Только MVP, без продакшн-архитектуры",
+            "MVP плюс минимальные пояснения архитектуры",
+            "Учебный проект с осторожными техническими деталями",
+        ],
+    ),
+]
 
 AGENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
@@ -583,6 +666,129 @@ def normalize_run_input_file_path(filename: str) -> str:
     return str(Path("source_pack") / normalized)
 
 
+def course_setup_from_form(form: cgi.FieldStorage) -> dict[str, str] | None:
+    course_setup: dict[str, str] = {}
+    for key, _, options in COURSE_SETUP_FIELD_DEFS:
+        value = safe_text(form.getfirst(key, "")).strip()
+        if value:
+            if value not in options:
+                raise ApiError("INVALID_COURSE_SETUP_VALUE", f"Недопустимое значение поля {key}.")
+            course_setup[key] = value
+        else:
+            course_setup[key] = ""
+    if not any(course_setup.values()):
+        return None
+    missing = [label for key, label, _ in COURSE_SETUP_FIELD_DEFS if not course_setup.get(key)]
+    if missing:
+        raise ApiError("COURSE_SETUP_REQUIRED", f"Заполните настройки курса: {', '.join(missing)}.")
+    course_setup["goal_note"] = safe_text(form.getfirst("goal", "")).strip()
+    course_setup["audience_note"] = safe_text(form.getfirst("target_audience", "")).strip()
+    course_setup["course_title"] = f"{course_setup['course_type']} — {course_setup['course_goal']}"
+    course_setup["source"] = COURSE_SETUP_SOURCE
+    return course_setup
+
+
+def render_course_setup_course_brief(run_id: str, course_setup: dict[str, str], source_files: list[str]) -> str:
+    source_list = source_files or ["(source pack will be attached through the run chain)"]
+    goal_note = course_setup.get("goal_note", "").strip() or "—"
+    audience_note = course_setup.get("audience_note", "").strip() or "—"
+    lines = [
+        "# Задание на курс",
+        "",
+        "Этот файл создан интерфейсом из настроек курса. Это задание на курс, а не результат работы агента.",
+        "",
+        "## Run ID",
+        "",
+        run_id,
+        "",
+        "## Название курса",
+        "",
+        course_setup.get("course_title", course_setup.get("course_goal", "Задание на курс")),
+        "",
+        "## Тип курса",
+        "",
+        course_setup.get("course_type", "—"),
+        "",
+        "## Для кого курс",
+        "",
+        course_setup.get("target_audience_type", "—"),
+        "",
+        "## Стартовый уровень ученика",
+        "",
+        course_setup.get("learner_starting_level", "—"),
+        "",
+        "## Цель курса",
+        "",
+        course_setup.get("course_goal", "—"),
+        "",
+        "## Что должно получиться в конце",
+        "",
+        course_setup.get("expected_practical_result", "—"),
+        "",
+        "## Размер курса",
+        "",
+        course_setup.get("preferred_course_size", "—"),
+        "",
+        "## Стиль объяснения",
+        "",
+        course_setup.get("explanation_style", "—"),
+        "",
+        "## Границы курса",
+        "",
+        course_setup.get("scope_strictness", "—"),
+        "",
+        "## Комментарий к цели",
+        "",
+        goal_note,
+        "",
+        "## Комментарий к аудитории",
+        "",
+        audience_note,
+        "",
+        "## Source basis",
+        "",
+        "- Загруженные source documents в `input/source_pack/`.",
+    ]
+    lines.extend([f"- input/source_pack/{source_file}" for source_file in source_list])
+    lines.extend(
+        [
+            "- Этот brief создан до выполнения Source Analyst и будет передан дальше как workflow artifact.",
+            "",
+            "## Methodology basis",
+            "",
+            "- `docs/course_factory/METHOD.md`",
+            "- `docs/course_factory/PIPELINE_HANDOFF_CONTRACT.md`",
+            "- `docs/course_factory/ARTIFACT_CONTRACTS.md`",
+            "",
+            "## Human approval points",
+            "",
+            "- Пользователь выбирает структурированные настройки курса в интерфейсе.",
+            "- Пользователь подтверждает source pack перед запуском Source Analyst.",
+            "- Следующий агент проверяет наличие `source_digest.md` и этого `Задание на курс`.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def write_course_setup_artifacts(run_dir: Path, run_id: str, agent: str, source_files: list[str], course_setup: dict[str, str]) -> dict[str, object]:
+    setup_path = run_dir / COURSE_SETUP_FILENAME
+    brief_path = run_dir / RUN_OUTPUT_DIR / COURSE_BRIEF_FILENAME
+    setup_payload = {
+        "run_id": run_id,
+        "agent": agent,
+        "created_at_utc": utc_stamp(),
+        "course_setup_source": COURSE_SETUP_SOURCE,
+        "course_brief_status": "available",
+        "course_brief_path": str(Path("output") / COURSE_BRIEF_FILENAME),
+        "course_setup_path": COURSE_SETUP_FILENAME,
+        "course_setup": course_setup,
+    }
+    setup_path.write_text(json.dumps(setup_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    brief_path.write_text(render_course_setup_course_brief(run_id, course_setup, source_files), encoding="utf-8")
+    return setup_payload
+
+
 def run_status_path(run_dir: Path) -> Path:
     return run_dir / RUN_STATUS_FILENAME
 
@@ -634,6 +840,8 @@ def find_agent_slug(agent: str) -> str:
 
 
 def run_request_markdown(run_id: str, agent: str, goal: str, target_audience: str, source_files: list[str]) -> str:
+    goal_display = goal or "—"
+    target_audience_display = target_audience or "—"
     lines = [
         "# Run request",
         "",
@@ -651,11 +859,11 @@ def run_request_markdown(run_id: str, agent: str, goal: str, target_audience: st
         "",
         "## Goal",
         "",
-        goal,
+        goal_display,
         "",
         "## Target audience",
         "",
-        target_audience,
+        target_audience_display,
         "",
         "## Source files",
         "",
@@ -693,7 +901,17 @@ def run_request_markdown(run_id: str, agent: str, goal: str, target_audience: st
     return "\n".join(lines)
 
 
-def write_run_request_files(run_dir: Path, run_id: str, agent: str, goal: str, target_audience: str, source_files: list[str]) -> dict[str, object]:
+def write_run_request_files(
+    run_dir: Path,
+    run_id: str,
+    agent: str,
+    goal: str,
+    target_audience: str,
+    source_files: list[str],
+    *,
+    extra_status: dict[str, object] | None = None,
+    extra_request_sections: list[str] | None = None,
+) -> dict[str, object]:
     ensure_run_structure(run_dir)
     status_payload = {
         "run_id": run_id,
@@ -705,6 +923,8 @@ def write_run_request_files(run_dir: Path, run_id: str, agent: str, goal: str, t
         "source_files": [f"input/source_pack/{name}" for name in source_files],
         "output_files": [],
     }
+    if extra_status:
+        status_payload.update(extra_status)
     (run_dir / RUN_INPUT_DIR).mkdir(parents=True, exist_ok=True)
     (run_dir / RUN_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     (run_dir / RUN_LOG_DIR).mkdir(parents=True, exist_ok=True)
@@ -714,6 +934,9 @@ def write_run_request_files(run_dir: Path, run_id: str, agent: str, goal: str, t
         run_request_markdown(run_id, agent, goal, target_audience, source_files),
         encoding="utf-8",
     )
+    if extra_request_sections:
+        existing = run_request_path(run_dir).read_text(encoding="utf-8")
+        run_request_path(run_dir).write_text(existing + "\n" + "\n".join(extra_request_sections), encoding="utf-8")
     run_status_path(run_dir).write_text(json.dumps(status_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return status_payload
 
@@ -725,11 +948,9 @@ def write_run_request_files_for_upstream_handoff(
     upstream_run_id: str,
     upstream_agent: str,
     target_agent: str,
-    upstream_artifact_source_path: str,
-    local_copied_artifact_path: str,
+    upstream_artifacts: list[dict[str, str]],
     upstream_request_md: str,
     course_brief_status: str,
-    source_files: list[str],
 ) -> dict[str, object]:
     expected_execution_behavior = (
         "Course Architect may STOP with STOP_COURSE_BRIEF_MISSING unless a course brief artifact is provided by workflow/project setup."
@@ -737,6 +958,9 @@ def write_run_request_files_for_upstream_handoff(
         else "Course Architect can proceed if the upstream course brief artifact is available in the workflow chain."
     )
     ensure_run_structure(run_dir)
+    source_files = [artifact["local_copied_artifact_path"] for artifact in upstream_artifacts]
+    primary_artifact = upstream_artifacts[0] if upstream_artifacts else {}
+    course_brief_artifact = next((artifact for artifact in upstream_artifacts if artifact.get("kind") == "course_brief"), None)
     status_payload = {
         "run_id": run_id,
         "agent": target_agent,
@@ -749,11 +973,14 @@ def write_run_request_files_for_upstream_handoff(
         "input_mode": "upstream_artifact_handoff",
         "upstream_run_id": upstream_run_id,
         "upstream_agent": upstream_agent,
-        "upstream_artifact_source_path": upstream_artifact_source_path,
-        "local_copied_artifact_path": local_copied_artifact_path,
+        "upstream_artifact_source_path": primary_artifact.get("upstream_source_path", ""),
+        "local_copied_artifact_path": primary_artifact.get("local_copied_artifact_path", ""),
         "course_brief_status": course_brief_status,
         "expected_execution_behavior": expected_execution_behavior,
     }
+    if course_brief_artifact:
+        status_payload["course_brief_source_path"] = course_brief_artifact.get("upstream_source_path", "")
+        status_payload["local_copied_course_brief_path"] = course_brief_artifact.get("local_copied_artifact_path", "")
     request_lines = [
         "# Run request",
         "",
@@ -785,37 +1012,44 @@ def write_run_request_files_for_upstream_handoff(
         "",
         target_agent,
         "",
-        "## Upstream artifact source path",
-        "",
-        upstream_artifact_source_path,
-        "",
-        "## Local copied artifact path",
-        "",
-        local_copied_artifact_path,
-        "",
-        "## Inherited context",
-        "",
-        upstream_request_md.strip() or "(upstream RUN_REQUEST.md not available)",
-        "",
-        "## Course brief status",
-        "",
-        course_brief_status,
-        "",
-        "## Expected execution behavior",
-        "",
-        expected_execution_behavior,
-        "",
-        "## Execution rule",
-        "",
-        "This run request was created by the upstream artifact handoff workflow.",
-        "",
-        "The UI does not execute Codex or model calls.",
-        "",
-        "A separate controlled Codex run must read this request, execute only the selected agent, and write results to:",
-        "",
-        "`output/`",
+        "## Upstream artifacts",
         "",
     ]
+    for artifact in upstream_artifacts:
+        request_lines.extend(
+            [
+                f"- {artifact.get('name', artifact.get('kind', 'artifact'))}",
+                f"  - Upstream source path: {artifact.get('upstream_source_path', '')}",
+                f"  - Local copied artifact path: {artifact.get('local_copied_artifact_path', '')}",
+            ]
+        )
+    request_lines.extend(
+        [
+            "",
+            "## Inherited context",
+            "",
+            upstream_request_md.strip() or "(upstream RUN_REQUEST.md not available)",
+            "",
+            "## Course brief status",
+            "",
+            course_brief_status,
+            "",
+            "## Expected execution behavior",
+            "",
+            expected_execution_behavior,
+            "",
+            "## Execution rule",
+            "",
+            "This run request was created by the upstream artifact handoff workflow.",
+            "",
+            "The UI does not execute Codex or model calls.",
+            "",
+            "A separate controlled Codex run must read this request, execute only the selected agent, and write results to:",
+            "",
+            "`output/`",
+            "",
+        ]
+    )
     run_request_path(run_dir).write_text("\n".join(request_lines), encoding="utf-8")
     run_status_path(run_dir).write_text(json.dumps(status_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return status_payload
@@ -902,18 +1136,6 @@ def resolve_completed_run_source_digest(upstream_run_id: str) -> tuple[Path, dic
     return source_digest, status
 
 
-def find_course_brief_artifact() -> tuple[str, str]:
-    candidates = [
-        RUNS_ROOT / "course_brief.md",
-        REPO_ROOT / "course_brief.md",
-        REPO_ROOT / "docs" / "project" / "course_brief.md",
-    ]
-    for path in candidates:
-        if path.exists() and path.is_file():
-            return str(path.relative_to(REPO_ROOT)), path.read_text(encoding="utf-8")
-    return "", ""
-
-
 def create_upstream_handoff_run(upstream_run_id: str, target_agent: str) -> dict[str, object]:
     if target_agent != "course-architect":
         raise ApiError("UNSUPPORTED_TARGET_AGENT", "This upstream handoff slice only supports Course Architect.")
@@ -922,36 +1144,47 @@ def create_upstream_handoff_run(upstream_run_id: str, target_agent: str) -> dict
     if not supported_upstream_handoff(str(upstream_status.get("agent", "")), target_agent):
         raise ApiError("UNSUPPORTED_UPSTREAM_HANDOFF", "Unsupported upstream handoff pair.")
 
+    upstream_run_dir = source_digest_path.parent.parent
     target_run_id = create_unique_run_id(target_agent)
     target_run_dir = RUNS_ROOT / target_run_id
     try:
         ensure_run_structure(target_run_dir)
         copied_root = target_run_dir / RUN_UPSTREAM_INPUT_DIR / upstream_run_id
         copied_root.mkdir(parents=True, exist_ok=True)
-        copied_source_digest = copied_root / source_digest_path.name
-        shutil.copy2(source_digest_path, copied_source_digest)
-        local_copied_artifact_path = str(
-            Path("input") / "upstream_artifacts" / upstream_run_id / source_digest_path.name
-        )
-        upstream_artifact_source_path = str(Path("output") / source_digest_path.name)
+        upstream_artifacts = []
+        source_artifacts: list[tuple[str, Path]] = [
+            ("source_digest", source_digest_path),
+        ]
+        course_brief_path = upstream_run_dir / RUN_OUTPUT_DIR / COURSE_BRIEF_FILENAME
+        course_brief_status = "available" if course_brief_path.exists() and course_brief_path.is_file() else "missing"
+        if course_brief_status == "available":
+            source_artifacts.append(("course_brief", course_brief_path))
 
+        for artifact_kind, artifact_source_path in source_artifacts:
+            copied_artifact_path = copied_root / artifact_source_path.name
+            shutil.copy2(artifact_source_path, copied_artifact_path)
+            upstream_artifacts.append(
+                {
+                    "kind": artifact_kind,
+                    "name": artifact_source_path.name,
+                    "upstream_source_path": str(Path("output") / artifact_source_path.name),
+                    "local_copied_artifact_path": str(Path("input") / "upstream_artifacts" / upstream_run_id / artifact_source_path.name),
+                }
+            )
+
+        local_copied_artifact_path = upstream_artifacts[0]["local_copied_artifact_path"]
+        upstream_artifact_source_path = upstream_artifacts[0]["upstream_source_path"]
         upstream_request_path = RUNS_ROOT / upstream_run_id / RUN_REQUEST_FILENAME
         upstream_request_md = read_optional_text(upstream_request_path)
-        _, course_brief_md = find_course_brief_artifact()
-        course_brief_status = "present" if course_brief_md else "missing"
-
-        source_files = [local_copied_artifact_path]
         status_payload = write_run_request_files_for_upstream_handoff(
             target_run_dir,
             run_id=target_run_id,
             upstream_run_id=upstream_run_id,
             upstream_agent=str(upstream_status.get("agent", "")),
             target_agent=target_agent,
-            upstream_artifact_source_path=upstream_artifact_source_path,
-            local_copied_artifact_path=local_copied_artifact_path,
+            upstream_artifacts=upstream_artifacts,
             upstream_request_md=upstream_request_md,
             course_brief_status=course_brief_status,
-            source_files=source_files,
         )
         status_payload["course_brief_status"] = course_brief_status
         status_payload["input_mode"] = "upstream_artifact_handoff"
@@ -959,6 +1192,11 @@ def create_upstream_handoff_run(upstream_run_id: str, target_agent: str) -> dict
         status_payload["upstream_agent"] = upstream_status.get("agent", "")
         status_payload["upstream_artifact_source_path"] = upstream_artifact_source_path
         status_payload["local_copied_artifact_path"] = local_copied_artifact_path
+        if course_brief_status == "available":
+            status_payload["course_brief_source_path"] = str(Path("output") / COURSE_BRIEF_FILENAME)
+            status_payload["local_copied_course_brief_path"] = str(
+                Path("input") / "upstream_artifacts" / upstream_run_id / COURSE_BRIEF_FILENAME
+            )
         return {
             "ok": True,
             "run_id": target_run_id,
@@ -970,7 +1208,17 @@ def create_upstream_handoff_run(upstream_run_id: str, target_agent: str) -> dict
             "course_brief_status": course_brief_status,
             "upstream_artifact_source_path": upstream_artifact_source_path,
             "local_copied_artifact_path": local_copied_artifact_path,
-            "source_files": source_files,
+            **(
+                {
+                    "course_brief_source_path": str(Path("output") / COURSE_BRIEF_FILENAME),
+                    "local_copied_course_brief_path": str(
+                        Path("input") / "upstream_artifacts" / upstream_run_id / COURSE_BRIEF_FILENAME
+                    ),
+                }
+                if course_brief_status == "available"
+                else {}
+            ),
+            "source_files": [artifact["local_copied_artifact_path"] for artifact in upstream_artifacts],
         }
     except Exception:
         shutil.rmtree(target_run_dir, ignore_errors=True)
@@ -1009,10 +1257,6 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
     target_audience = safe_text(form.getfirst("target_audience", "")).strip()
     if not agent or not is_safe_agent(agent):
         raise ApiError("INVALID_AGENT", "Выберите корректного агента.")
-    if not goal:
-        raise ApiError("GOAL_REQUIRED", "Укажите цель запуска.")
-    if not target_audience:
-        raise ApiError("TARGET_AUDIENCE_REQUIRED", "Укажите целевую аудиторию.")
 
     upload_items = [
         item
@@ -1052,7 +1296,53 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
                 continue
             raise ApiError("INVALID_SOURCE_FILENAME", f"Некорректное имя файла: {filename}")
 
-        status_payload = write_run_request_files(run_dir, run_id, agent, goal, target_audience, source_files)
+        course_setup = course_setup_from_form(form) if agent == "source-analyst" else None
+        if course_setup:
+            setup_payload = write_course_setup_artifacts(run_dir, run_id, agent, source_files, course_setup)
+            status_extra = {
+                "course_setup_source": COURSE_SETUP_SOURCE,
+                "course_setup_path": COURSE_SETUP_FILENAME,
+                "course_brief_status": "available",
+                "course_brief_path": str(Path("output") / COURSE_BRIEF_FILENAME),
+                "course_setup": course_setup,
+                "output_files": [COURSE_BRIEF_FILENAME],
+            }
+            request_extra = [
+                "## Course setup",
+                "",
+                "Эти настройки сохраняются как \"Задание на курс\" и передаются следующим агентам автоматически.",
+                "",
+                "## Course setup path",
+                "",
+                COURSE_SETUP_FILENAME,
+                "",
+                "## Course brief status",
+                "",
+                setup_payload["course_brief_status"],
+                "",
+                "## Course brief path",
+                "",
+                str(setup_payload["course_brief_path"]),
+                "",
+                "## Course setup source",
+                "",
+                str(setup_payload["course_setup_source"]),
+                "",
+            ]
+        else:
+            status_extra = None
+            request_extra = None
+
+        status_payload = write_run_request_files(
+            run_dir,
+            run_id,
+            agent,
+            goal,
+            target_audience,
+            source_files,
+            extra_status=status_extra,
+            extra_request_sections=request_extra,
+        )
         return {
             "ok": True,
             **status_payload,
