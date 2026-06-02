@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import cgi
 import base64
+import io
 import hmac
 import json
 import mimetypes
@@ -12,6 +13,7 @@ import shutil
 import subprocess
 import hashlib
 import secrets
+import zipfile
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -39,6 +41,7 @@ RUN_PENDING_STATUS = "pending_codex_execution"
 RUN_INPUT_DIR = Path("input") / "source_pack"
 RUN_OUTPUT_DIR = Path("output")
 RUN_LOG_DIR = Path("logs")
+RUN_ZIP_EXTS = {".zip"}
 
 AGENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
@@ -470,6 +473,45 @@ def is_safe_run_filename(filename: str, *, allowed_exts: set[str] | None = None)
     return True
 
 
+def normalize_run_relative_path(path_text: str, *, allow_nested: bool) -> str:
+    raw = safe_text(path_text).strip().replace("\\", "/")
+    if not raw:
+        raise ApiError("INVALID_SOURCE_FILENAME", "Имя файла не может быть пустым.")
+    if raw.startswith("/") or raw.startswith("~"):
+        raise ApiError("INVALID_SOURCE_FILENAME", f"Недопустимый путь: {raw}")
+    parts = raw.split("/")
+    if not allow_nested and len(parts) != 1:
+        raise ApiError("INVALID_SOURCE_FILENAME", f"Недопустимое имя файла: {raw}")
+    if any(not part or part in {".", ".."} for part in parts):
+        raise ApiError("INVALID_SOURCE_FILENAME", f"Недопустимый путь: {raw}")
+    if any(part.startswith(".") for part in parts):
+        raise ApiError("INVALID_SOURCE_FILENAME", f"Скрытые файлы запрещены: {raw}")
+    for part in parts:
+        if not RUN_SAFE_BASENAME_RE.fullmatch(part):
+            raise ApiError("INVALID_SOURCE_FILENAME", f"Недопустимое имя файла: {raw}")
+    return "/".join(parts)
+
+
+def is_ignored_zip_member(name: str) -> bool:
+    normalized = name.replace("\\", "/").strip("/")
+    if not normalized:
+        return True
+    parts = normalized.split("/")
+    return parts[0] == "__MACOSX" or any(part.startswith(".") and part not in {".", ".."} for part in parts)
+
+
+def zip_member_path_is_safe(name: str) -> bool:
+    normalized = name.replace("\\", "/").strip()
+    if not normalized:
+        return False
+    if normalized.startswith("/") or normalized.startswith("~"):
+        return False
+    parts = normalized.split("/")
+    if any(not part or part in {".", ".."} for part in parts):
+        return False
+    return all(RUN_SAFE_BASENAME_RE.fullmatch(part) for part in parts)
+
+
 def resolve_run_dir(run_id: str, *, must_exist: bool = False) -> Path:
     if not is_safe_run_id(run_id):
         raise ApiError("INVALID_RUN_ID", "Некорректный идентификатор запуска.")
@@ -511,14 +553,15 @@ def list_marked_files(directory: Path, *, allowed_exts: set[str] | None = None) 
     if not directory.exists() or not directory.is_dir():
         return []
     items: list[str] = []
-    for path in sorted(directory.iterdir(), key=lambda p: p.name.lower()):
+    for path in sorted(directory.rglob("*"), key=lambda p: str(p.relative_to(directory)).lower()):
         if not path.is_file():
             continue
-        if path.name.startswith(".") or path.name == ".gitkeep":
+        relative = path.relative_to(directory)
+        if any(part.startswith(".") for part in relative.parts) or relative.name == ".gitkeep":
             continue
         if allowed_exts and path.suffix.lower() not in allowed_exts:
             continue
-        items.append(path.name)
+        items.append(str(relative).replace("\\", "/"))
     return items
 
 
@@ -657,17 +700,68 @@ def write_run_request_files(run_dir: Path, run_id: str, agent: str, goal: str, t
     return status_payload
 
 
-def store_run_source_file(run_dir: Path, filename: str, content: str) -> str:
-    if not is_safe_run_filename(filename, allowed_exts={".md"}):
+def store_run_source_file(run_dir: Path, filename: str, content: str, *, allow_nested: bool = False) -> str:
+    normalized_filename = normalize_run_relative_path(filename, allow_nested=allow_nested)
+    if Path(normalized_filename).suffix.lower() != ".md":
         raise ApiError("INVALID_SOURCE_FILENAME", "Некорректное имя исходного markdown-файла.")
     if len(content.encode("utf-8")) > MAX_CONTENT_BYTES:
         raise ApiError("CONTENT_TOO_LARGE", "Файл превышает 200 KB.")
-    target = run_dir / RUN_INPUT_DIR / filename
+    target = run_dir / RUN_INPUT_DIR / Path(normalized_filename)
+    if target.exists():
+        raise ApiError("DUPLICATE_SOURCE_FILENAME", f"Файл уже существует: {normalized_filename}")
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_symlink():
         raise ValueError("symlinked source file is not allowed")
     target.write_text(content, encoding="utf-8", newline="\n")
-    return str(Path("input") / "source_pack" / filename)
+    return str(Path("input") / "source_pack" / normalized_filename)
+
+
+def extract_zip_source_files(run_dir: Path, archive_name: str, archive_bytes: bytes) -> list[str]:
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(archive_bytes))
+    except zipfile.BadZipFile as exc:
+        raise ApiError("INVALID_SOURCE_ARCHIVE", f"Некорректный zip-архив: {archive_name}") from exc
+
+    extracted: list[str] = []
+    seen: set[str] = set()
+    try:
+        for info in archive.infolist():
+            raw_name = info.filename or ""
+            if not raw_name or info.is_dir():
+                continue
+            normalized_name = raw_name.replace("\\", "/").strip()
+            if is_ignored_zip_member(normalized_name):
+                continue
+            if not zip_member_path_is_safe(normalized_name):
+                raise ApiError("INVALID_ZIP_SOURCE_PATH", f"Недопустимый путь в архиве: {raw_name}")
+            relative_name = normalize_run_relative_path(normalized_name, allow_nested=True)
+            if Path(relative_name).suffix.lower() != ".md":
+                continue
+            if relative_name in seen:
+                raise ApiError("DUPLICATE_SOURCE_FILENAME", f"Файл уже существует: {relative_name}")
+            if info.file_size > MAX_CONTENT_BYTES:
+                raise ApiError("CONTENT_TOO_LARGE", f"Файл превышает 200 KB: {relative_name}")
+            with archive.open(info) as source:
+                raw_content = source.read(MAX_CONTENT_BYTES + 1)
+            if len(raw_content) > MAX_CONTENT_BYTES:
+                raise ApiError("CONTENT_TOO_LARGE", f"Файл превышает 200 KB: {relative_name}")
+            try:
+                content = raw_content.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ApiError("INVALID_SOURCE_ENCODING", f"Файл не UTF-8: {relative_name}") from exc
+            extracted_path = store_run_source_file(run_dir, relative_name, content, allow_nested=True)
+            seen.add(relative_name)
+            extracted.append(relative_name)
+    except ApiError:
+        raise
+    except Exception as exc:
+        raise ApiError("INVALID_SOURCE_ARCHIVE", f"Не удалось прочитать zip-архив: {archive_name}") from exc
+    finally:
+        archive.close()
+
+    if not extracted:
+        raise ApiError("ZIP_ARCHIVE_HAS_NO_MARKDOWN", f"ZIP-архив не содержит markdown-файлов: {archive_name}")
+    return extracted
 
 
 def read_run_file(run_id: str, kind: str, filename: str) -> tuple[Path, str]:
@@ -680,19 +774,20 @@ def read_run_file(run_id: str, kind: str, filename: str) -> tuple[Path, str]:
     }
     if kind not in kind_map:
         raise ApiError("INVALID_KIND", "Недопустимый kind.")
-    if not is_safe_run_filename(filename, allowed_exts=RUN_ALLOWED_READ_EXTS):
+    relative_name = normalize_run_relative_path(filename, allow_nested=True)
+    if Path(relative_name).suffix.lower() not in RUN_ALLOWED_READ_EXTS:
         raise ApiError("INVALID_FILENAME", "Некорректное имя файла.")
     root = kind_map[kind]
-    target = root / filename
+    target = root / Path(relative_name)
     if target.is_symlink():
         raise ApiError("FILE_PATH_FORBIDDEN", "Символьные ссылки для файлов запрещены.")
     if not target.exists() or not target.is_file():
         raise ApiError("FILE_NOT_FOUND", "Файл не найден.", status=404)
     resolved = target.resolve(strict=True)
     root_resolved = root.resolve(strict=True)
-    if root_resolved not in resolved.parents and resolved != root_resolved / filename:
+    if root_resolved not in resolved.parents and resolved != root_resolved / relative_name:
         raise ApiError("FILE_PATH_FORBIDDEN", "Файл выходит за пределы разрешённой папки.")
-    return resolved, str(Path(filename))
+    return resolved, relative_name
 
 
 def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
@@ -722,16 +817,27 @@ def create_run_request_from_form(form: cgi.FieldStorage) -> dict[str, object]:
 
         for item in upload_items:
             filename = safe_text(item.filename).strip()
-            if not is_safe_run_filename(filename, allowed_exts={".md"}):
-                raise ApiError("INVALID_SOURCE_FILENAME", f"Некорректное имя файла: {filename}")
             item.file.seek(0)
             raw = item.file.read()
             if isinstance(raw, str):
-                content = raw
+                raw_bytes = raw.encode("utf-8")
             else:
-                content = raw.decode("utf-8")
-            source_files.append(filename)
-            store_run_source_file(run_dir, filename, content)
+                raw_bytes = raw
+            suffix = Path(filename).suffix.lower()
+            if suffix == ".md":
+                normalized_name = normalize_run_relative_path(filename, allow_nested=False)
+                try:
+                    content = raw_bytes.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    raise ApiError("INVALID_SOURCE_ENCODING", f"Файл не UTF-8: {normalized_name}") from exc
+                store_run_source_file(run_dir, normalized_name, content)
+                source_files.append(normalized_name)
+                continue
+            if suffix == ".zip":
+                extracted = extract_zip_source_files(run_dir, filename, raw_bytes)
+                source_files.extend(extracted)
+                continue
+            raise ApiError("INVALID_SOURCE_FILENAME", f"Некорректное имя файла: {filename}")
 
         status_payload = write_run_request_files(run_dir, run_id, agent, goal, target_audience, source_files)
         return {

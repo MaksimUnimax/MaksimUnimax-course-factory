@@ -150,7 +150,7 @@
     if (names.length) {
       runs.sourceHint.textContent = `Выбраны файлы: ${names.join(", ")}`;
     } else {
-      runs.sourceHint.textContent = "После обновления страницы исходные файлы нужно выбрать заново — браузер не разрешает восстанавливать file input автоматически.";
+      runs.sourceHint.textContent = "Можно выбрать .md файлы и .zip архивы. После обновления страницы исходные файлы нужно выбрать заново — браузер не разрешает восстанавливать file input автоматически.";
     }
   }
 
@@ -547,7 +547,7 @@
       return;
     }
     if (!files || !files.length) {
-      setMessage(runs.createMessage, "Добавьте хотя бы один markdown-файл.", "error");
+      setMessage(runs.createMessage, "Добавьте хотя бы один markdown-файл или ZIP-архив.", "error");
       return;
     }
 

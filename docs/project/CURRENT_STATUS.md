@@ -26,6 +26,9 @@ Fixed:
 - selected agent, goal, and target audience are preserved as a browser draft;
 - the UI explains that file inputs must be selected again after refresh.
 
+The `/runs` source input now accepts individual `.md` files, `.zip` archives containing markdown files, and mixed `.md` + `.zip` selections.
+Extracted markdown files are stored under `runs/<run_id>/input/source_pack/` and listed in the run request.
+
 The first controlled Source Analyst run has been completed.
 
 Run:
